@@ -54,7 +54,10 @@ def card_component_input(name: str):
 def card_generic_input(component: str, header: str, properties: list):
     # Create Input rows
     rows = [dbc.Col(width=6),
-            dbc.Col(dbc.Label("Nominal"), width=2)]
+            dbc.Col(dbc.Label("Nominal"), width=2),
+            dbc.Col(dbc.Label("Min"), width=2),
+            dbc.Col(dbc.Label("Max"), width=2)
+            ]
     rows.extend([input_row1(component=component, property=a) for a in properties])
 
     card = dbc.Card([
@@ -98,7 +101,7 @@ app.layout = dbc.Container([
                         dbc.Col(card_generic_input(component="Financials", header="Financials",
                                                    properties=["Discount Rate [%]",
                                                                "Lifetime [y]",
-                                                               "Operating hours [hr/yr]"]), md=4),
+                                                               "Operating hours [hr/yr]"]), width=4),
                         dbc.Col(dbc.Card([
                             dbc.CardHeader("Fuel Cost Settings"),
                             dbc.CardBody([
@@ -119,13 +122,9 @@ app.layout = dbc.Container([
                                 input_row1(component="Fuel", property="NG cost [€/kWh]"),
                                 input_row1(component="Fuel", property="NG cost increase [%/yr]")
                             ])
-                        ])
+                        ]),width=4
                         ),
 
-                        dbc.Col(card_generic_input(component="Fuel", header="Fuel Definitions",
-                                                   properties=["Cost [€/kWh]",
-                                                               "Yearly increase [%]",
-                                                               ]), md=4),
 
                     ])
                 ], title="General Settings", ),
