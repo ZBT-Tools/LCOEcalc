@@ -23,6 +23,9 @@ NG_fuel_cost_Cases = ["NG Today",
                       "IRENA Outlook 2040",
                       ]
 
+df_definitions = pd.read_excel("Dash_LCOE_Configuration.xlsx")
+
+
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 
@@ -99,7 +102,8 @@ app.layout = dbc.Container([
                         dbc.Col(card_component_input("SOFC"), md=4),
                         dbc.Col(card_component_input("ICE"), md=4),
                     ], )
-                ], title="Energy Conversion System Definition", ),
+                ], title="Energy Conversion System Definition I", ),
+                #dbc.AccordionItem([], title="Energy Conversion System Definition II"),
                 dbc.AccordionItem([
                     dbc.Row([
                         dbc.Col(card_generic_input(component="Financials", header="Financials",
@@ -138,14 +142,15 @@ app.layout = dbc.Container([
                 dbc.AccordionItem([], title="LCOE Sensitivity Study"),
                 dbc.AccordionItem([], title="About"),
                 dbc.AccordionItem([dbc.Row([dbc.Col(dbc.Button("Initial Data Collect", id="bt_collect"), width=2),
-                                            dbc.Col(dbc.Button("Update Data Collect", id="bt_update_collect"),
-                                                    width=2),
-                                            dbc.Col(dbc.Button("Load Input", id="bt_load_Input"),
-                                                    width=2)
+                                            dbc.Col(dbc.Button("Update Data Collect", id="bt_update_collect"), width=2),
+                                            dbc.Col(dbc.Button("Export Input", id="bt_export_Input"), width=2),
+                                            dbc.Col(dbc.Button("Load Input", id="bt_load_Input"), width=2)
                                             ]),
                                    dbc.Row([html.Pre("...", id="txt_out1")]), # ToDo
                                    dbc.Row([html.Pre("...", id="txt_out2")]),
-                                   dbc.Row([html.Pre("...", id="txt_out3")])
+                                   dbc.Row([html.Pre("...", id="txt_out3")]),
+                                    dbc.Row([html.Pre("...", id="txt_out4")]),
+                                    dbc.Row([html.Pre("...", id="txt_out5")])
                                    ], title="Developer"),
 
             ], always_open=True)
@@ -162,7 +167,7 @@ app.layout = dbc.Container([
 @app.callback(
     Output("txt_out1", "children"), Input("bt_collect", "n_clicks"), State({'type': 'input', 'index': ALL}, 'value'),
     prevent_initial_call=True)
-def dev_button_Collect(input, states):
+def dev_button_initialCollectInput(input, states):
     df = pd.DataFrame(index=ctx.states.keys(), columns=["input_name"])
 
     for key, val in ctx.states.items():
@@ -176,23 +181,36 @@ def dev_button_Collect(input, states):
 @app.callback(
     Output("txt_out2", "children"), Input("bt_update_collect", "n_clicks"),
     State({'type': 'input', 'index': ALL}, 'value'), prevent_initial_call=True)
-def dev_button_update_Collect(input, states):
-    if not input is None:
-        df = pd.read_pickle("data.pkl")
-        for key, val in ctx.states.items():
-            df.loc[key, input] = val
-        df.to_pickle("data.pkl")
+def dev_button_updateCollectInput(input, states):
+    df = pd.read_pickle("data.pkl")
+    for key, val in ctx.states.items():
+        df.loc[key, input] = val
+    df.to_pickle("data.pkl")
     return "ok"
 
 @app.callback(
-    Output({'type': 'input', 'index': ALL}, Input("bt_load_Input", "n_clicks"), prevent_initial_call=True)
-def dev_button_writeInput(input, states):
-    if not input is None:
-        df = pd.read_pickle("data.pkl")
-        for key, val in ctx.states.items():
-            df.loc[key, input] = val
-        df.to_pickle("data.pkl")
+    Output("txt_out4", "children"), Input("bt_export_Input", "n_clicks"),
+    State({'type': 'input', 'index': ALL}, 'value'), prevent_initial_call=True)
+def dev_button_exportInput(input, states):
+    for key, val in ctx.states.items():
+        df_definitions.loc[key, input] = val
+    df_definitions.to_excel("test.xlsx")
     return "ok"
+
+@app.callback(
+    Output({'type': 'input', 'index': ALL}, 'value'), Input("bt_load_Input", "n_clicks"), prevent_initial_call=True)
+def dev_button_loadInput(input):
+    # Input field list:
+    # Reihenfolge der ids
+    #print(ctx.outputs_list[0]["id"]["index"])
+
+    df = pd.read_pickle("data_return.pkl")
+    return_list = []
+    for el in ctx.outputs_list:
+        el_id_index = el["id"]["index"]
+        return_list.append(df.loc[df.input_name == el_id_index, 100].item())
+    #print(return_list)
+    return return_list
 
 
 @app.callback(
