@@ -7,54 +7,55 @@ import dash
 import json
 import dash_bootstrap_components as dbc
 import pandas as pd
+import base64
 import plotly.graph_objs as go
 from dash import Input, Output, dcc, html, ctx, State, MATCH, ALL
+from flask_caching import Cache
 
-# Definitions ToDo: Find best position
-preset_Cases = ["100kW base case, Ver. 09/22",
-                "1MW  base case, Ver. 09/22"]
-
-NH3_fuel_cost_Cases = ["NH3 Today",
-                       "IRENA Outlook Green NH3 2030",
-                       "IRENA Outlook Green NH3 2040",
-                       ]
-NG_fuel_cost_Cases = ["NG Today",
-                      "IRENA Outlook 2030",
-                      "IRENA Outlook 2040",
-                      ]
-
-df_definitions = pd.read_excel("Dash_LCOE_Configuration.xlsx")
-
+df_presets = pd.read_excel("input/Dash_LCOE_ConfigurationII.xlsx")
+df_NH3fuel_presets = pd.read_excel("input/Dash_LCOE_NH3.xlsx")
+df_NGfuel_presets = pd.read_excel("input/Dash_LCOE_NG.xlsx")
 
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
+# https://community.plotly.com/t/how-to-easily-clear-cache/7069/2
+cache = Cache(app.server, config={"CACHE_TYPE": "simple"})
+cache.clear()
 
-def input_row1(component, ident, text):
+
+def input_row1(component, ident, text, type="input"):
     row = dbc.Row([
         dbc.Col(dbc.Label(text), width=6),
-        dbc.Col(dbc.Input(id={'type': 'input', 'index': f"input_{component}_{ident}"}, type="text", size="sm"),
+        dbc.Col(dbc.Input(id={'type': type, 'index': f"input_{component}_{ident}"}, type="text", size="sm"),
                 width=2),
-        dbc.Col(dbc.Input(id={'type': 'input', 'index': f"input_{component}_{ident}_min"}, type="text", disabled=True,
+        dbc.Col(dbc.Input(id={'type': type, 'index': f"input_{component}_{ident}_min"}, type="text", disabled=True,
                           size="sm"), width=2),
-        dbc.Col(dbc.Input(id={'type': 'input', 'index': f"input_{component}_{ident}_max"}, type="text", disabled=True,
+        dbc.Col(dbc.Input(id={'type': type, 'index': f"input_{component}_{ident}_max"}, type="text", disabled=True,
                           size="sm"), width=2)])
     return row
 
 
-def card_component_input(name: str):
+def card_component_input(name: str, add_items: dict = {}):
+    card_body_rows = [
+        dbc.Row([
+            dbc.Col(width=6),
+            dbc.Col(dbc.Label("Nominal"), width=2),
+            dbc.Col(dbc.Label("Min"), width=2),
+            dbc.Col(dbc.Label("Max"), width=2)]),
+        input_row1(component=name, ident="capex_Eur_kW", text="Capex [€/kW]"),
+        input_row1(component=name, ident="opex_Eur_kW_yr", text="Opex (no Fuel) [€/kW/yr]"),
+        input_row1(component=name, ident="eta_perc", text="Efficiency [%]")]
+    list_additional_rows = []
+    for key, val in add_items.items():
+        rw = input_row1(component=name, ident=key, text=val)
+        list_additional_rows.append(rw)
+
+    card_body_rows.extend(list_additional_rows)
+
     card = dbc.Card([
         dbc.CardHeader(f"{name}"),
         dbc.CardBody([
-            html.Div([
-                dbc.Row([
-                    dbc.Col(width=6),
-                    dbc.Col(dbc.Label("Nominal"), width=2),
-                    dbc.Col(dbc.Label("Min"), width=2),
-                    dbc.Col(dbc.Label("Max"), width=2)]),
-                input_row1(component=name, ident="capex", text="Capex [€/kW]"),
-                input_row1(component=name, ident="opex", text="Opex (no Fuel) [€/kW]"),
-                input_row1(component=name, ident="eta", text="Efficiency [%]"),
-            ])])])
+            html.Div(card_body_rows)])])
     return card
 
 
@@ -85,53 +86,65 @@ def generic_dropdown(id: str, label: str, elements: list):
     return dropdown
 
 
+# https://community.plotly.com/t/png-image-not-showing/15713/2 # ToDo: Understand Image handling
+hipowar_png = 'img/Logo_HiPowAR.png'
+hipowar_base64 = base64.b64encode(open(hipowar_png, 'rb').read()).decode('ascii')
+eu_png = 'img/EU_Logo.png'
+eu_base64 = base64.b64encode(open(eu_png, 'rb').read()).decode('ascii')
+
 app.layout = dbc.Container([
-    html.H1("HiPowAR LCOE Tool"),
+    dbc.Row([dbc.Col(html.H1("HiPowAR LCOE Tool"), width=6),
+             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(hipowar_base64), width=100)),
+             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(eu_base64), width=400))]),
     html.Hr(),
     dbc.Row([
         dbc.Col([
             dbc.Accordion([
                 dbc.AccordionItem([
-                    dbc.Row([dbc.Col(generic_dropdown(id="dd_preset", label="Select Preset", elements=preset_Cases),
-                                     width=2),
-                             dbc.Col(html.P(id="txt_Preset_Selection"), width=8)]),
+                    dbc.Row([dbc.Col(generic_dropdown(id="dd_preset", label="Select Preset",
+                                                      elements=df_presets.columns[2:]), width=2),
+                             dbc.Col(html.P("select...", id="txt_Preset_Selection"), width=8)]),
+                    dbc.Row([dbc.Col(generic_dropdown(id="dd_NH3_fuel_cost", label="NH3 Cost Selector",
+                                                      elements=df_NH3fuel_presets.columns[2:]), width=2),
+                             dbc.Col(html.P("select...", id="txt_NH3_fuel_cost_Preset_Selection"))]),
+                    dbc.Row([dbc.Col(generic_dropdown(id="dd_NG_fuel_cost", label="NG Cost Selector",
+                                                      elements=df_NGfuel_presets.columns[2:]), width=2),
+                             dbc.Col(html.P("select...", id="txt_NG_fuel_cost_Preset_Selection"))]),
                 ], title="Quick Start"),
                 dbc.AccordionItem([
                     dbc.Row([
                         dbc.Col(card_component_input("HiPowAR"), md=4),
-                        dbc.Col(card_component_input("SOFC"), md=4),
+                        dbc.Col(card_component_input("SOFC",add_items={"stacklifetime_hr": "Stack Lifetime [hr]",
+                                                                       "stackexchangecost_percCapex": "Stack Exchange Cost [% Capex"}), md=4),
                         dbc.Col(card_component_input("ICE"), md=4),
                     ], )
                 ], title="Energy Conversion System Definition I", ),
-                #dbc.AccordionItem([], title="Energy Conversion System Definition II"),
+                # dbc.AccordionItem([], title="Energy Conversion System Definition II"),
                 dbc.AccordionItem([
                     dbc.Row([
                         dbc.Col(card_generic_input(component="Financials", header="Financials",
-                                                   ident=["discountrate", "lifetime", "operatinghoursyearly"],
+                                                   ident=["discountrate_perc", "lifetime_yr", "operatinghoursyearly"],
                                                    text=["Discount Rate [%]",
                                                          "Lifetime [y]",
                                                          "Operating hours [hr/yr]"]), md=4),
                         dbc.Col(dbc.Card([
                             dbc.CardHeader("Fuel Cost Settings"),
                             dbc.CardBody([
-                                dbc.Row([dbc.Col(generic_dropdown(id="dd_NH3_fuel_cost", label="NH3 Cost Selector",
-                                                                  elements=NH3_fuel_cost_Cases)),
-                                         dbc.Col(html.P(id="txt_NH3_fuel_cost_Preset_Selection")),
-                                         dbc.Col(generic_dropdown(id="dd_NG_fuel_cost", label="NG Cost Selector",
-                                                                  elements=NG_fuel_cost_Cases))]),
-                                dbc.Col(html.P(id="txt_NG_fuel_cost_Preset_Selection")),
                                 dbc.Row([
                                     dbc.Col(width=6),
                                     dbc.Col(dbc.Label("Nominal"), width=2),
                                     dbc.Col(dbc.Label("Min"), width=2),
                                     dbc.Col(dbc.Label("Max"), width=2)]),
 
-                                input_row1(component="Fuel", ident="NH3_cost_EUR_per_kW", text="NH3 cost [€/kWh]"),
+                                input_row1(component="Fuel", ident="NH3_cost_EUR_per_kW", text="NH3 cost [€/kWh]",
+                                           type="fuel_NH3_input"),
                                 input_row1(component="Fuel", ident="NH3_costIncrease_percent_per_year",
-                                           text="NH3 cost increase [%/yr]"),
-                                input_row1(component="Fuel", ident="NG_cost_EUR_per_kW", text="NG cost [€/kWh]"),
+                                           text="NH3 cost increase [%/yr]", type="fuel_NH3_input"),
+                                html.Hr(),
+                                input_row1(component="Fuel", ident="NG_cost_EUR_per_kW", text="NG cost [€/kWh]",
+                                           type="fuel_NG_input"),
                                 input_row1(component="Fuel", ident="NG_costIncrease_percent_per_year",
-                                           text="NG cost increase [%/yr]")
+                                           text="NG cost increase [%/yr]", type="fuel_NG_input")
                             ])
                         ]), md=4
                         ),
@@ -141,17 +154,18 @@ app.layout = dbc.Container([
                 dbc.AccordionItem([], title="LCOE Plots"),
                 dbc.AccordionItem([], title="LCOE Sensitivity Study"),
                 dbc.AccordionItem([], title="About"),
-                dbc.AccordionItem([dbc.Row([dbc.Col(dbc.Button("Initial Data Collect", id="bt_collect"), width=2),
-                                            dbc.Col(dbc.Button("Update Data Collect", id="bt_update_collect"), width=2),
-                                            dbc.Col(dbc.Button("Export Input", id="bt_export_Input"), width=2),
-                                            dbc.Col(dbc.Button("Load Input", id="bt_load_Input"), width=2)
-                                            ]),
-                                   dbc.Row([html.Pre("...", id="txt_out1")]), # ToDo
-                                   dbc.Row([html.Pre("...", id="txt_out2")]),
-                                   dbc.Row([html.Pre("...", id="txt_out3")]),
-                                    dbc.Row([html.Pre("...", id="txt_out4")]),
-                                    dbc.Row([html.Pre("...", id="txt_out5")])
-                                   ], title="Developer"),
+                dbc.AccordionItem([
+                    dbc.Row([dbc.Col(dbc.Button("Initial Data Collect", id="bt_collect"), width=2),
+                             dbc.Col(dbc.Button("Update Data Collect", id="bt_update_collect"), width=2),
+                             dbc.Col(dbc.Button("Export Input", id="bt_export_Input"), width=2),
+                             dbc.Col(dbc.Button("Load Input", id="bt_load_Input"), width=2)
+                             ]),
+                    dbc.Row([html.Pre("...", id="txt_out1")]),  # ToDo
+                    dbc.Row([html.Pre("...", id="txt_out2")]),
+                    dbc.Row([html.Pre("...", id="txt_out3")]),
+                    dbc.Row([html.Pre("...", id="txt_out4")]),
+                    dbc.Row([html.Pre("...", id="txt_out5")])
+                ], title="Developer"),
 
             ], always_open=True)
         ]),
@@ -160,21 +174,85 @@ app.layout = dbc.Container([
 ], fluid=True)
 
 
-# Developer Callbacks
+# Callbacks
 # --------------------------------------------------------------
 # --------------------------------------------------------------
 # --------------------------------------------------------------
+
+
 @app.callback(
-    Output("txt_out1", "children"), Input("bt_collect", "n_clicks"), State({'type': 'input', 'index': ALL}, 'value'),
+    Output("txt_Preset_Selection", "children"),
+    [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_presets.columns[2:]))],
+    prevent_initial_call=True)
+def quickstart_select_preset_I(*inputs):
+    selection_id = df_presets.columns[2:][int(ctx.triggered_id[-1])]
+    return f"{selection_id}"
+
+
+@app.callback(
+    Output({'type': 'input', 'index': ALL}, 'value'), Input("txt_Preset_Selection", "children"),
+    prevent_initial_call=True)
+def quickstart_select_preset_II(input):
+    return_list = []
+    for el in ctx.outputs_list:
+        el_id_index = el["id"]["index"]
+        return_list.append(df_presets.loc[df_presets.input_name == el_id_index, input].item())
+    return return_list
+
+
+@app.callback(
+    Output("txt_NH3_fuel_cost_Preset_Selection", "children"),
+    [Input(f"dd_NH3_fuel_cost_{n}", "n_clicks") for n in range(len(df_NH3fuel_presets.columns[2:]))],
+    prevent_initial_call=True)
+def quickstart_select_NH3fuel_preset_I(*input):
+    selection_id = df_NH3fuel_presets.columns[2:][int(ctx.triggered_id[-1])]
+    return f"{selection_id}"
+
+
+@app.callback(
+    Output({'type': 'fuel_NH3_input', 'index': ALL}, 'value'), Input("txt_NH3_fuel_cost_Preset_Selection", "children"),
+    prevent_initial_call=True)
+def quickstart_select_NH3fuel_preset_II(input):
+    return_list = []
+    df_NH3fuel_presets.columns[2:]
+    for el in ctx.outputs_list:
+        el_id_index = el["id"]["index"]
+        return_list.append(df_NH3fuel_presets.loc[df_NH3fuel_presets.input_name == el_id_index, input].item())
+    return return_list
+
+
+@app.callback(
+    Output("txt_NG_fuel_cost_Preset_Selection", "children"),
+    [Input(f"dd_NG_fuel_cost_{n}", "n_clicks") for n in range(len(df_NGfuel_presets.columns[2:]))],
+    prevent_initial_call=True)
+def quickstart_select_NGfuel_preset_I(*input):
+    selection_id = df_NGfuel_presets.columns[2:][int(ctx.triggered_id[-1])]
+    return f"{selection_id}"
+
+
+@app.callback(
+    Output({'type': 'fuel_NG_input', 'index': ALL}, 'value'), Input("txt_NG_fuel_cost_Preset_Selection", "children"),
+    prevent_initial_call=True)
+def quickstart_select_NGfuel_preset_II(input):
+    return_list = []
+    df_NH3fuel_presets.columns[2:]
+    for el in ctx.outputs_list:
+        el_id_index = el["id"]["index"]
+        return_list.append(df_NGfuel_presets.loc[df_NGfuel_presets.input_name == el_id_index, input].item())
+    return return_list
+
+
+@app.callback(
+    Output("txt_out1", "children"), Input("bt_collect", "n_clicks"),
+    State({'type': 'input', 'index': ALL}, 'value'),
     prevent_initial_call=True)
 def dev_button_initialCollectInput(input, states):
     df = pd.DataFrame(index=ctx.states.keys(), columns=["input_name"])
-
     for key, val in ctx.states.items():
         par = key.split('"')[3]
         df.loc[key, "input_name"] = par
         df.loc[key, 0] = val
-    df.to_pickle("data.pkl")
+    df.to_pickle("input2.pkl")
     return "ok"
 
 
@@ -188,50 +266,37 @@ def dev_button_updateCollectInput(input, states):
     df.to_pickle("data.pkl")
     return "ok"
 
+
 @app.callback(
     Output("txt_out4", "children"), Input("bt_export_Input", "n_clicks"),
-    State({'type': 'input', 'index': ALL}, 'value'), prevent_initial_call=True)
+    State({'type': 'fuel_NG_input', 'index': ALL}, 'value'), prevent_initial_call=True)
 def dev_button_exportInput(input, states):
+    df = pd.read_pickle("input2.pkl")
     for key, val in ctx.states.items():
-        df_definitions.loc[key, input] = val
-    df_definitions.to_excel("test.xlsx")
+        df.loc[key, input] = val
+    df.to_excel("test.xlsx")
     return "ok"
-
-@app.callback(
-    Output({'type': 'input', 'index': ALL}, 'value'), Input("bt_load_Input", "n_clicks"), prevent_initial_call=True)
-def dev_button_loadInput(input):
-    # Input field list:
-    # Reihenfolge der ids
-    #print(ctx.outputs_list[0]["id"]["index"])
-
-    df = pd.read_pickle("data_return.pkl")
-    return_list = []
-    for el in ctx.outputs_list:
-        el_id_index = el["id"]["index"]
-        return_list.append(df.loc[df.input_name == el_id_index, 100].item())
-    #print(return_list)
-    return return_list
-
-
-@app.callback(
-    Output("txt_Preset_Selection", "children"), [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(preset_Cases))])
-def show_selected_preset(a, b):
-    if ctx.triggered_id is not None:
-        selection_id = preset_Cases[int(ctx.triggered_id[-1])]
-    else:
-        selection_id = 'No Selection'
-
-    return f"{selection_id}"
 
 
 # @app.callback(
-#    Output("txt_NH3_fuel_cost_Preset_Selection", "children"), [Input(f"dd_NH3_fuel_cost_{n}", "n_clicks") for n in range(len(NH3_fuel_cost_Cases))]
-# )
-# def show_selected_NH3preset(a, b):
-#     if ctx.triggered_id is not None:
-#         selection_id = NH3_fuel_cost_Cases[int(ctx.triggered_id[-1])]
-#     else:
-#         selection_id = 'No Selection'
+#     Output({'type': 'input', 'index': ALL}, 'value'), Input("bt_load_Input", "n_clicks"), prevent_initial_call=True)
+# def dev_button_loadInput(input):
+#     # Input field list:
+#     # Reihenfolge der ids
+#     #print(ctx.outputs_list[0]["id"]["index"])
+#
+#     df = pd.read_pickle("data_return.pkl")
+#     return_list = []
+#     for el in ctx.outputs_list:
+#         el_id_index = el["id"]["index"]
+#         return_list.append(df.loc[df.input_name == el_id_index, 100].item())
+#     #print(return_list)
+#     return return_list
+
+
+# @app.callback( Output("txt_NH3_fuel_cost_Preset_Selection", "children"), [Input(f"dd_NH3_fuel_cost_{n}",
+# "n_clicks") for n in range(len(NH3_fuel_cost_Cases))] ) def show_selected_NH3preset(a, b): if ctx.triggered_id is
+# not None: selection_id = NH3_fuel_cost_Cases[int(ctx.triggered_id[-1])] else: selection_id = 'No Selection'
 #
 #     return f"{selection_id}"
 #
