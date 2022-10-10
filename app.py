@@ -22,7 +22,6 @@ app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 cache = Cache(app.server, config={"CACHE_TYPE": "simple"})
 cache.clear()
 
-
 def input_row1(component, ident, text, type="input"):
     row = dbc.Row([
         dbc.Col(dbc.Label(text), width=6),
@@ -43,7 +42,7 @@ def card_component_input(name: str, add_items: dict = {}):
             dbc.Col(dbc.Label("Min"), width=2),
             dbc.Col(dbc.Label("Max"), width=2)]),
         input_row1(component=name, ident="capex_Eur_kW", text="Capex [€/kW]"),
-        input_row1(component=name, ident="opex_Eur_kW_yr", text="Opex (no Fuel) [€/kW/yr]"),
+        input_row1(component=name, ident="opex_Eur_kWh", text="Opex (no Fuel) [€/kWh]"),
         input_row1(component=name, ident="eta_perc", text="Efficiency [%]")]
     list_additional_rows = []
     for key, val in add_items.items():
@@ -85,7 +84,6 @@ def generic_dropdown(id: str, label: str, elements: list):
     )
     return dropdown
 
-
 # https://community.plotly.com/t/png-image-not-showing/15713/2 # ToDo: Understand Image handling
 hipowar_png = 'img/Logo_HiPowAR.png'
 hipowar_base64 = base64.b64encode(open(hipowar_png, 'rb').read()).decode('ascii')
@@ -114,8 +112,9 @@ app.layout = dbc.Container([
                 dbc.AccordionItem([
                     dbc.Row([
                         dbc.Col(card_component_input("HiPowAR"), md=4),
-                        dbc.Col(card_component_input("SOFC",add_items={"stacklifetime_hr": "Stack Lifetime [hr]",
-                                                                       "stackexchangecost_percCapex": "Stack Exchange Cost [% Capex"}), md=4),
+                        dbc.Col(card_component_input("SOFC", add_items={"stacklifetime_hr": "Stack Lifetime [hr]",
+                                                                        "stackexchangecost_percCapex": "Stack Exchange Cost [% Capex"}),
+                                md=4),
                         dbc.Col(card_component_input("ICE"), md=4),
                     ], )
                 ], title="Energy Conversion System Definition I", ),
@@ -158,13 +157,15 @@ app.layout = dbc.Container([
                     dbc.Row([dbc.Col(dbc.Button("Initial Data Collect", id="bt_collect"), width=2),
                              dbc.Col(dbc.Button("Update Data Collect", id="bt_update_collect"), width=2),
                              dbc.Col(dbc.Button("Export Input", id="bt_export_Input"), width=2),
-                             dbc.Col(dbc.Button("Load Input", id="bt_load_Input"), width=2)
+                             dbc.Col(dbc.Button("Load Input", id="bt_load_Input"), width=2),
+                             dbc.Col(dbc.Button("Process Input", id="bt_process_Input"), width=2)
                              ]),
                     dbc.Row([html.Pre("...", id="txt_out1")]),  # ToDo
                     dbc.Row([html.Pre("...", id="txt_out2")]),
                     dbc.Row([html.Pre("...", id="txt_out3")]),
                     dbc.Row([html.Pre("...", id="txt_out4")]),
-                    dbc.Row([html.Pre("...", id="txt_out5")])
+                    dbc.Row([html.Pre("...", id="txt_out5")]),
+                    dbc.Row([html.Pre("...", id="txt_out6")])
                 ], title="Developer"),
 
             ], always_open=True)
@@ -278,38 +279,20 @@ def dev_button_exportInput(input, states):
     return "ok"
 
 
-# @app.callback(
-#     Output({'type': 'input', 'index': ALL}, 'value'), Input("bt_load_Input", "n_clicks"), prevent_initial_call=True)
-# def dev_button_loadInput(input):
-#     # Input field list:
-#     # Reihenfolge der ids
-#     #print(ctx.outputs_list[0]["id"]["index"])
-#
-#     df = pd.read_pickle("data_return.pkl")
-#     return_list = []
-#     for el in ctx.outputs_list:
-#         el_id_index = el["id"]["index"]
-#         return_list.append(df.loc[df.input_name == el_id_index, 100].item())
-#     #print(return_list)
-#     return return_list
+@app.callback(
+    Output("txt_out6", "children"), Input("bt_process_Input", "n_clicks"),
+    State({'type': 'input', 'index': ALL}, 'value'),
+    State({'type': 'fuel_NH3_input', 'index': ALL}, 'value'),
+    State({'type': 'fuel_NG_input', 'index': ALL}, 'value'), prevent_initial_call=True)
+def dev_button_procSelection(*args):
+    # Collect all input variables and reformat to data table
+    df = pd.DataFrame(columns=["nominal", "min", "max"])
+    for sublist in ctx.states_list:
+        for el in sublist:
+            el["id"]["index"]
+    return "ok"
 
 
-# @app.callback( Output("txt_NH3_fuel_cost_Preset_Selection", "children"), [Input(f"dd_NH3_fuel_cost_{n}",
-# "n_clicks") for n in range(len(NH3_fuel_cost_Cases))] ) def show_selected_NH3preset(a, b): if ctx.triggered_id is
-# not None: selection_id = NH3_fuel_cost_Cases[int(ctx.triggered_id[-1])] else: selection_id = 'No Selection'
-#
-#     return f"{selection_id}"
-#
-# @app.callback(
-#     Output("txt_NG_fuel_cost_Preset_Selection", "children"), [Input(f"dd_NG_fuel_cost{n}", "n_clicks") for n in range(len(NG_fuel_cost_Cases))]
-# )
-# def show_selected_NGpreset(a, b):
-#     if ctx.triggered_id is not None:
-#         selection_id = NG_fuel_cost_Cases[int(ctx.triggered_id[-1])]
-#     else:
-#         selection_id = 'No Selection'
-#
-#     return f"{selection_id}"
 
 
 if __name__ == "__main__":
