@@ -159,7 +159,7 @@ app.layout = dbc.Container([
                                 'data': [
                                     {'x': [1, 2, 3], 'y': [4, 1, 2], 'type': 'bar', 'name': 'HiPowAR'},
                                     {'x': [1, 2, 3], 'y': [2, 4, 5], 'type': 'bar', 'name': 'NG-SOFC'},
-                                   {'x': [1, 2, 3], 'y': [5, 2, 1], 'type': 'bar', 'name': 'NG-ICE'}
+                                    {'x': [1, 2, 3], 'y': [5, 2, 1], 'type': 'bar', 'name': 'NG-ICE'}
                                 ],
                                 'layout': {
                                     'title': 'Levelized Cost of Electricity Comparison'
@@ -296,18 +296,30 @@ def dev_button_exportInput(input, states):
     return "ok"
 
 
-# @app.callback(
-#     Output("txt_out6", "children"), Input("bt_process_Input", "n_clicks"),
-#     State({'type': 'input', 'index': ALL}, 'value'),
-#     State({'type': 'fuel_NH3_input', 'index': ALL}, 'value'),
-#     State({'type': 'fuel_NG_input', 'index': ALL}, 'value'), prevent_initial_call=True)
-# def dev_button_procSelection(*args):
-#     # Collect all input variables and reformat to data table
-#     df = pd.DataFrame(columns=["nominal", "min", "max"])
-#     for sublist in ctx.states_list:
-#         for el in sublist:
-#             el["id"]["index"]
-#     return "ok"
+@app.callback(
+    Output("txt_out6", "children"), Input("bt_process_Input", "n_clicks"),
+    State({'type': 'input', 'index': ALL}, 'value'),
+    State({'type': 'fuel_NH3_input', 'index': ALL}, 'value'),
+    State({'type': 'fuel_NG_input', 'index': ALL}, 'value'), prevent_initial_call=True)
+def dev_button_procSelection(*args):
+    # Collect all input variables and reformat to data table
+    df = pd.DataFrame(columns=["nominal", "min", "max"])
+
+    for system in ["HiPowAR", "SOFC", "ICE"]:
+        print(system)
+        print("------------------------")
+        system_specific_input = {"name": system}
+        for el in ctx.states_list[0]:
+            if el["id"]["index"].find(system) >= 0:
+                print(el["id"]["index"])
+
+
+#    for sublist in ctx.states_list:
+#        print(sublist)
+#        print("................................")
+#        for el in sublist:
+#            print("................................")
+#   return "ok"
 
 
 if __name__ == "__main__":

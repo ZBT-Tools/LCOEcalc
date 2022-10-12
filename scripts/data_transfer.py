@@ -5,25 +5,28 @@ class DC_SystemInput:
     """..."""
     name: str  # Component name, as "HiPowAr" or "ICE"
     size: float  # [kW]
-    capex: float  # [€/kW]
-    opex: float  # [€/kWh], without fuel
-    eta: float  # [%]
+    capex_Eur_kW: float  # [€/kW]
+    opex_Eur_kWh: float  # [€/kWh], without fuel
+    eta_perc: float  # [%]
 
 
 @dataclass
 class DC_FinancialInput:
     """..."""
-    discountrate: float  # [%]
-    lifetime: float  # [yr]
-    yrly_operatinghours: float  # [hr/yr]
+    discountrate_perc: float  # [%]
+    lifetime_yr: float  # [yr]
+    operatinghoursyearly: float  # [hr/yr]
 
 @dataclass
 class DC_FuelInput:
     """..."""
     name: str  # fuel name, as "NH3","NG",...
-    cost: float  # [€/kWh]
-    yrly_costincrease: float  # [%]
+    cost_Eur_per_kW: float  # [€/kWh]
+    costincrease_percent_per_year: float  # [%]
 
 
 def readCellInput():
     ...
+
+if __name__ == "__main__":
+    fuel = DC_FuelInput(name="nh3",cost_Eur_per_kW=2,costincrease_percent_per_year=1)
