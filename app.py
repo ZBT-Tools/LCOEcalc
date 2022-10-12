@@ -4,6 +4,7 @@ Dash port of Shiny iris k-means example:
 https://shiny.rstudio.com/gallery/kmeans-example.html
 """
 import dash
+from dash import dcc
 import json
 import dash_bootstrap_components as dbc
 import pandas as pd
@@ -21,6 +22,7 @@ app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 # https://community.plotly.com/t/how-to-easily-clear-cache/7069/2
 cache = Cache(app.server, config={"CACHE_TYPE": "simple"})
 cache.clear()
+
 
 def input_row1(component, ident, text, type="input"):
     row = dbc.Row([
@@ -84,6 +86,7 @@ def generic_dropdown(id: str, label: str, elements: list):
     )
     return dropdown
 
+
 # https://community.plotly.com/t/png-image-not-showing/15713/2 # ToDo: Understand Image handling
 hipowar_png = 'img/Logo_HiPowAR.png'
 hipowar_base64 = base64.b64encode(open(hipowar_png, 'rb').read()).decode('ascii')
@@ -118,7 +121,6 @@ app.layout = dbc.Container([
                         dbc.Col(card_component_input("ICE"), md=4),
                     ], )
                 ], title="Energy Conversion System Definition I", ),
-                # dbc.AccordionItem([], title="Energy Conversion System Definition II"),
                 dbc.AccordionItem([
                     dbc.Row([
                         dbc.Col(card_generic_input(component="Financials", header="Financials",
@@ -150,7 +152,22 @@ app.layout = dbc.Container([
 
                     ])
                 ], title="General Settings", ),
-                dbc.AccordionItem([], title="LCOE Plots"),
+                dbc.AccordionItem([dbc.Row([
+                    dbc.Col([
+                        dcc.Graph(
+                            figure={
+                                'data': [
+                                    {'x': [1, 2, 3], 'y': [4, 1, 2], 'type': 'bar', 'name': 'HiPowAR'},
+                                    {'x': [1, 2, 3], 'y': [2, 4, 5], 'type': 'bar', 'name': 'NG-SOFC'},
+                                   {'x': [1, 2, 3], 'y': [5, 2, 1], 'type': 'bar', 'name': 'NG-ICE'}
+                                ],
+                                'layout': {
+                                    'title': 'Levelized Cost of Electricity Comparison'
+                                }
+                            }
+                        )
+                    ])
+                ])], title="LCOE Plots"),
                 dbc.AccordionItem([], title="LCOE Sensitivity Study"),
                 dbc.AccordionItem([], title="About"),
                 dbc.AccordionItem([
@@ -167,7 +184,6 @@ app.layout = dbc.Container([
                     dbc.Row([html.Pre("...", id="txt_out5")]),
                     dbc.Row([html.Pre("...", id="txt_out6")])
                 ], title="Developer"),
-
             ], always_open=True)
         ]),
     ]),
@@ -197,6 +213,7 @@ def quickstart_select_preset_II(input):
     return_list = []
     for el in ctx.outputs_list:
         el_id_index = el["id"]["index"]
+        print(el_id_index)
         return_list.append(df_presets.loc[df_presets.input_name == el_id_index, input].item())
     return return_list
 
@@ -279,20 +296,18 @@ def dev_button_exportInput(input, states):
     return "ok"
 
 
-@app.callback(
-    Output("txt_out6", "children"), Input("bt_process_Input", "n_clicks"),
-    State({'type': 'input', 'index': ALL}, 'value'),
-    State({'type': 'fuel_NH3_input', 'index': ALL}, 'value'),
-    State({'type': 'fuel_NG_input', 'index': ALL}, 'value'), prevent_initial_call=True)
-def dev_button_procSelection(*args):
-    # Collect all input variables and reformat to data table
-    df = pd.DataFrame(columns=["nominal", "min", "max"])
-    for sublist in ctx.states_list:
-        for el in sublist:
-            el["id"]["index"]
-    return "ok"
-
-
+# @app.callback(
+#     Output("txt_out6", "children"), Input("bt_process_Input", "n_clicks"),
+#     State({'type': 'input', 'index': ALL}, 'value'),
+#     State({'type': 'fuel_NH3_input', 'index': ALL}, 'value'),
+#     State({'type': 'fuel_NG_input', 'index': ALL}, 'value'), prevent_initial_call=True)
+# def dev_button_procSelection(*args):
+#     # Collect all input variables and reformat to data table
+#     df = pd.DataFrame(columns=["nominal", "min", "max"])
+#     for sublist in ctx.states_list:
+#         for el in sublist:
+#             el["id"]["index"]
+#     return "ok"
 
 
 if __name__ == "__main__":
