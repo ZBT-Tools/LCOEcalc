@@ -13,9 +13,8 @@ import plotly.graph_objs as go
 from dash import Input, Output, dcc, html, ctx, State, MATCH, ALL
 from flask_caching import Cache
 
-df_presets = pd.read_excel("input/Dash_LCOE_ConfigurationIII.xlsx")
-df_NH3fuel_presets = pd.read_excel("input/Dash_LCOE_NH3.xlsx")
-df_NGfuel_presets = pd.read_excel("input/Dash_LCOE_NG.xlsx")
+df_input = pd.read_excel("input/Dash_LCOE_Configuration_v4.xlsx",
+                         sheet_name=["Systems", "Financial", "Fuel_NH3", "Fuel_NG"])
 
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -56,6 +55,7 @@ def card_component_input(name: str, add_items: dict = {}):
         dbc.CardBody([
             html.Div(card_body_rows)])])
     return card
+
 
 def card_generic_input(component: str, header: str, ident: list, text: list):
     # Create Input rows
@@ -102,14 +102,17 @@ app.layout = dbc.Container([
         dbc.Col([
             dbc.Accordion([
                 dbc.AccordionItem([
-                    dbc.Row([dbc.Col(generic_dropdown(id="dd_preset", label="Select Preset",
-                                                      elements=df_presets.columns[3:]), width=2),
+                    dbc.Row([dbc.Col(generic_dropdown(id="dd_preset", label="System Presets",
+                                                      elements=df_input["Systems"].columns[3:]), width=2),
                              dbc.Col(html.P("select...", id="txt_Preset_Selection"), width=8)]),
+                    dbc.Row([dbc.Col(generic_dropdown(id="dd_Financial", label="Financial Presets",
+                                                      elements=df_input["Financial"].columns[3:]), width=2),
+                             dbc.Col(html.P("select...", id="txt_Financial_Selection"), width=8)]),
                     dbc.Row([dbc.Col(generic_dropdown(id="dd_NH3_fuel_cost", label="NH3 Cost Selector",
-                                                      elements=df_NH3fuel_presets.columns[2:]), width=2),
+                                                      elements=df_input["Fuel_NH3"].columns[3:]), width=2),
                              dbc.Col(html.P("select...", id="txt_NH3_fuel_cost_Preset_Selection"))]),
                     dbc.Row([dbc.Col(generic_dropdown(id="dd_NG_fuel_cost", label="NG Cost Selector",
-                                                      elements=df_NGfuel_presets.columns[2:]), width=2),
+                                                      elements=df_input["Fuel_NG"].columns[3:]), width=2),
                              dbc.Col(html.P("select...", id="txt_NG_fuel_cost_Preset_Selection"))]),
                 ], title="Quick Start"),
                 dbc.AccordionItem([
@@ -127,7 +130,7 @@ app.layout = dbc.Container([
                                                    ident=["discountrate_perc", "lifetime_yr", "operatinghoursyearly"],
                                                    text=["Discount Rate [%]",
                                                          "Lifetime [y]",
-                                                         "Operating hours [hr/yr]"],), md=4),
+                                                         "Operating hours [hr/yr]"], ), md=4),
                         dbc.Col(dbc.Card([
                             dbc.CardHeader("Fuel Cost Settings"),
                             dbc.CardBody([
@@ -195,15 +198,28 @@ app.layout = dbc.Container([
 # --------------------------------------------------------------
 # --------------------------------------------------------------
 
+def fill_inputfields(input,df):
+    return_lists = []
+    for li in ctx.outputs_list:
+        return_list = []
+        for el in li:
+            comp = el["id"]["type"][6:]
+            par = el["id"]["index"]
+            return_list.append(
+                df.loc[(df.component == comp) & (df.parameter == par), input].item())
+        return_lists.append(return_list)
+    return return_lists
+
+
+
 
 @app.callback(
     Output("txt_Preset_Selection", "children"),
-    [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_presets.columns[3:]))],
+    [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_input["Systems"].columns[3:]))],
     prevent_initial_call=True)
 def quickstart_select_preset_I(*inputs):
-    selection_id = df_presets.columns[3:][int(ctx.triggered_id[-1])]
+    selection_id = df_input["Systems"].columns[3:][int(ctx.triggered_id[-1])]
     return f"{selection_id}"
-
 
 @app.callback(
     Output({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
@@ -212,60 +228,58 @@ def quickstart_select_preset_I(*inputs):
     Input("txt_Preset_Selection", "children"),
     prevent_initial_call=True)
 def quickstart_select_preset_II(input):
-    return_lists = []
-    for li in ctx.outputs_list:
-        return_list = []
-        for el in li:
-            #print("hi")
-            comp = el["id"]["type"][6:]
-            par = el["id"]["index"]
-            #print("hi")
-            return_list.append(df_presets.loc[(df_presets.component == comp) & (df_presets.parameter == par), input].item())
-        return_lists.append(return_list)
+    return_lists = fill_inputfields(input, df_input["Systems"])
+    return return_lists
+
+@app.callback(
+    Output("txt_Financial_Selection", "children"),
+    [Input(f"dd_Financial_{n}", "n_clicks") for n in range(len(df_input["Financial"].columns[3:]))],
+    prevent_initial_call=True)
+def quickstart_select_financial_I(*inputs):
+    selection_id = df_input["Financial"].columns[3:][int(ctx.triggered_id[-1])]
+    return f"{selection_id}"
+
+@app.callback(
+    [Output({'type': 'input_Financials', 'index': ALL}, 'value')],
+    Input("txt_Financial_Selection", "children"),
+    prevent_initial_call=True)
+def quickstart_select_financial_II(input):
+    return_lists = fill_inputfields(input, df_input["Financial"])
+    return return_lists
+
+@app.callback(
+    Output("txt_NH3_fuel_cost_Preset_Selection", "children"),
+    [Input(f"dd_NH3_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NH3"].columns[3:]))],
+    prevent_initial_call=True)
+def quickstart_select_NH3fuel_preset_I(*input):
+    selection_id = df_input["Fuel_NH3"].columns[3:][int(ctx.triggered_id[-1])]
+    return f"{selection_id}"
+
+
+@app.callback(
+    [Output({'type': 'input_Fuel_NH3', 'index': ALL}, 'value')],
+    Input("txt_NH3_fuel_cost_Preset_Selection", "children"),
+    prevent_initial_call=True)
+def quickstart_select_NH3fuel_preset_II(input):
+    return_lists = fill_inputfields(input, df_input["Fuel_NH3"])
     return return_lists
 
 
 @app.callback(
-    Output("txt_NH3_fuel_cost_Preset_Selection", "children"),
-    [Input(f"dd_NH3_fuel_cost_{n}", "n_clicks") for n in range(len(df_NH3fuel_presets.columns[2:]))],
-    prevent_initial_call=True)
-def quickstart_select_NH3fuel_preset_I(*input):
-    selection_id = df_NH3fuel_presets.columns[2:][int(ctx.triggered_id[-1])]
-    return f"{selection_id}"
-
-
-@app.callback(
-    Output({'type': 'fuel_NH3_input', 'index': ALL}, 'value'), Input("txt_NH3_fuel_cost_Preset_Selection", "children"),
-    prevent_initial_call=True)
-def quickstart_select_NH3fuel_preset_II(input):
-    return_list = []
-    df_NH3fuel_presets.columns[2:]
-    for el in ctx.outputs_list:
-        el_id_index = el["id"]["index"]
-        return_list.append(df_NH3fuel_presets.loc[df_NH3fuel_presets.input_name == el_id_index, input].item())
-    return return_list
-
-
-@app.callback(
     Output("txt_NG_fuel_cost_Preset_Selection", "children"),
-    [Input(f"dd_NG_fuel_cost_{n}", "n_clicks") for n in range(len(df_NGfuel_presets.columns[2:]))],
+    [Input(f"dd_NG_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NG"].columns[3:]))],
     prevent_initial_call=True)
 def quickstart_select_NGfuel_preset_I(*input):
-    selection_id = df_NGfuel_presets.columns[2:][int(ctx.triggered_id[-1])]
+    selection_id = df_input["Fuel_NG"].columns[3:][int(ctx.triggered_id[-1])]
     return f"{selection_id}"
 
-
 @app.callback(
-    Output({'type': 'fuel_NG_input', 'index': ALL}, 'value'), Input("txt_NG_fuel_cost_Preset_Selection", "children"),
+    [Output({'type': 'input_Fuel_NG', 'index': ALL}, 'value')],
+    Input("txt_NG_fuel_cost_Preset_Selection", "children"),
     prevent_initial_call=True)
 def quickstart_select_NGfuel_preset_II(input):
-    return_list = []
-    df_NH3fuel_presets.columns[2:]
-    for el in ctx.outputs_list:
-        el_id_index = el["id"]["index"]
-        return_list.append(df_NGfuel_presets.loc[df_NGfuel_presets.input_name == el_id_index, input].item())
-    return return_list
-
+    return_lists = fill_inputfields(input, df_input["Fuel_NG"])
+    return return_lists
 
 @app.callback(
     Output("txt_out1", "children"), Input("bt_collect", "n_clicks"),
@@ -273,40 +287,40 @@ def quickstart_select_NGfuel_preset_II(input):
     State({'type': 'input_SOFC', 'index': ALL}, 'value'),
     State({'type': 'input_ICE', 'index': ALL}, 'value'),
     State({'type': 'input_Financials', 'index': ALL}, 'value'),
-    State({'type': 'input_Fuel', 'index': ALL}, 'value'),
+    State({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
+    State({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
     prevent_initial_call=True)
 def dev_button_initialCollectInput(*args):
     """
     :param args:
     :return: Creates new dataframe / excel table with all inputfields of types defined in callback above.
     """
-    df = pd.DataFrame(index=ctx.states.keys(), columns=["component","parameter"])
-    #print(ctx.states_list)
-    #print(ctx.states.keys())
+    df = pd.DataFrame(index=ctx.states.keys(), columns=["component", "parameter"])
     for key, val in ctx.states.items():
-        comp =  key.split('"')[7][6:]
+        comp = key.split('"')[7][6:]
         par = key.split('"')[3]
         df.loc[key, "parameter"] = par
         df.loc[key, "component"] = comp
         df.loc[key, 0] = val
-    df.to_pickle("input3.pkl")
+    df.to_pickle("input4.pkl")
     return "ok"
-
 
 @app.callback(
     Output("txt_out2", "children"), Input("bt_update_collect", "n_clicks"),
     State({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
     State({'type': 'input_SOFC', 'index': ALL}, 'value'),
     State({'type': 'input_ICE', 'index': ALL}, 'value'),
+    State({'type': 'input_Financials', 'index': ALL}, 'value'),
+    State({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
+    State({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
     prevent_initial_call=True)
 def dev_button_updateCollectInput(input, *args):
-    df = pd.read_pickle("input3.pkl")
+    df = pd.read_pickle("input4.pkl")
     for key, val in ctx.states.items():
         df.loc[key, input] = val
-    df.to_pickle("input3_upd.pkl")
-    df.to_excel("input3_upd.xlsx")
+    df.to_pickle("input4_upd.pkl")
+    df.to_excel("input4_upd.xlsx")
     return "ok"
-
 
 
 @app.callback(
@@ -343,7 +357,6 @@ def dev_button_procSelection(*args):
     print(SOFC_specific_input)
     print(ICE_specific_input)
 
-
 @app.callback(
     Output("txt_out7", "children"), Input("bt_debugprint", "n_clicks"),
     State({'type': 'input', 'index': ALL}, 'value'),
@@ -352,7 +365,6 @@ def dev_button_procSelection(*args):
 def dev_button_debugprint(*args):
     for el in ctx.states_list[0]:
         print(el)
-
 
 if __name__ == "__main__":
     app.run_server(debug=True, port=8888)
