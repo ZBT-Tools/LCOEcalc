@@ -4,7 +4,7 @@ from dataclasses import dataclass
 class DC_SystemInput:
     """..."""
     name: str  # Component name, as "HiPowAr" or "ICE"
-    size: float  # [kW]
+    size_kW: float  # [kW]
     capex_Eur_kW: float  # [€/kW]
     opex_Eur_kWh: float  # [€/kWh], without fuel
     eta_perc: float  # [%]
@@ -21,8 +21,8 @@ class DC_FinancialInput:
 class DC_FuelInput:
     """..."""
     name: str  # fuel name, as "NH3","NG",...
-    cost_Eur_per_kW: float  # [€/kWh]
-    costincrease_percent_per_year: float  # [%]
+    cost_Eur_per_kWh: float  # [€/kWh]
+    costIncrease_percent_per_year: float  # [%]
 
 
 def readCellInput():

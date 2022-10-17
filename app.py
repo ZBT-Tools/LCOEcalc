@@ -1,7 +1,8 @@
 """
-Dash port of Shiny iris k-means example:
 
-https://shiny.rstudio.com/gallery/kmeans-example.html
+
+Planned Updates:
+- Preselected definitions
 """
 import dash
 from dash import dcc
@@ -12,6 +13,12 @@ import base64
 import plotly.graph_objs as go
 from dash import Input, Output, dcc, html, ctx, State, MATCH, ALL
 from flask_caching import Cache
+from dacite import from_dict
+from scripts.lcoe import System
+from scripts.data_transfer import DC_FinancialInput,DC_SystemInput,DC_FuelInput
+
+
+
 
 df_input = pd.read_excel("input/Dash_LCOE_Configuration_v4.xlsx",
                          sheet_name=["Systems", "Financial", "Fuel_NH3", "Fuel_NG"])
@@ -23,14 +30,14 @@ cache = Cache(app.server, config={"CACHE_TYPE": "simple"})
 cache.clear()
 
 
-def input_row_v1(component, ident, text):
+def input_row_v1(component, ident, text, disabled=[False, True, True]):
     row = dbc.Row([
         dbc.Col(dbc.Label(text), width=6),
-        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}"}, type="text", size="sm"),
-                width=2),
-        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_min"}, type="text", disabled=True,
+        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}"}, type="text", size="sm",
+                          disabled=disabled[0]), width=2),
+        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_min"}, type="text", disabled=disabled[1],
                           size="sm"), width=2),
-        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_max"}, type="text", disabled=True,
+        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_max"}, type="text", disabled=disabled[2],
                           size="sm"), width=2)])
     return row
 
@@ -42,6 +49,7 @@ def card_component_input(name: str, add_items: dict = {}):
             dbc.Col(dbc.Label("Nominal"), width=2),
             dbc.Col(dbc.Label("Min"), width=2),
             dbc.Col(dbc.Label("Max"), width=2)]),
+        input_row_v1(component=name, ident="size_kW", text="El. Output [kW]"),
         input_row_v1(component=name, ident="capex_Eur_kW", text="Capex [€/kW]"),
         input_row_v1(component=name, ident="opex_Eur_kWh", text="Opex (no Fuel) [€/kWh]"),
         input_row_v1(component=name, ident="eta_perc", text="Efficiency [%]")]
@@ -140,11 +148,11 @@ app.layout = dbc.Container([
                                     dbc.Col(dbc.Label("Min"), width=2),
                                     dbc.Col(dbc.Label("Max"), width=2)]),
 
-                                input_row_v1(component="Fuel_NH3", ident="cost_EUR_per_kW", text="NH3 cost [€/kWh]"),
+                                input_row_v1(component="Fuel_NH3", ident="cost_Eur_per_kWh", text="NH3 cost [€/kWh]"),
                                 input_row_v1(component="Fuel_NH3", ident="costIncrease_percent_per_year",
                                              text="NH3 cost increase [%/yr]"),
                                 html.Hr(),
-                                input_row_v1(component="Fuel_NG", ident="cost_EUR_per_kW", text="NG cost [€/kWh]"),
+                                input_row_v1(component="Fuel_NG", ident="cost_Eur_per_kWh", text="NG cost [€/kWh]"),
                                 input_row_v1(component="Fuel_NG", ident="costIncrease_percent_per_year",
                                              text="NG cost increase [%/yr]")
                             ])
@@ -198,19 +206,21 @@ app.layout = dbc.Container([
 # --------------------------------------------------------------
 # --------------------------------------------------------------
 
-def fill_inputfields(input,df):
+def fill_inputfields(input, df):
     return_lists = []
     for li in ctx.outputs_list:
         return_list = []
         for el in li:
             comp = el["id"]["type"][6:]
             par = el["id"]["index"]
-            return_list.append(
-                df.loc[(df.component == comp) & (df.parameter == par), input].item())
+            try:
+                return_list.append(
+                    df.loc[(df.component == comp) & (df.parameter == par), input].item())
+            except:
+                print(f"No data found for {comp},{par}")
+                return_list.append(None)
         return_lists.append(return_list)
     return return_lists
-
-
 
 
 @app.callback(
@@ -220,6 +230,7 @@ def fill_inputfields(input,df):
 def quickstart_select_preset_I(*inputs):
     selection_id = df_input["Systems"].columns[3:][int(ctx.triggered_id[-1])]
     return f"{selection_id}"
+
 
 @app.callback(
     Output({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
@@ -231,6 +242,7 @@ def quickstart_select_preset_II(input):
     return_lists = fill_inputfields(input, df_input["Systems"])
     return return_lists
 
+
 @app.callback(
     Output("txt_Financial_Selection", "children"),
     [Input(f"dd_Financial_{n}", "n_clicks") for n in range(len(df_input["Financial"].columns[3:]))],
@@ -239,6 +251,7 @@ def quickstart_select_financial_I(*inputs):
     selection_id = df_input["Financial"].columns[3:][int(ctx.triggered_id[-1])]
     return f"{selection_id}"
 
+
 @app.callback(
     [Output({'type': 'input_Financials', 'index': ALL}, 'value')],
     Input("txt_Financial_Selection", "children"),
@@ -246,6 +259,7 @@ def quickstart_select_financial_I(*inputs):
 def quickstart_select_financial_II(input):
     return_lists = fill_inputfields(input, df_input["Financial"])
     return return_lists
+
 
 @app.callback(
     Output("txt_NH3_fuel_cost_Preset_Selection", "children"),
@@ -273,6 +287,7 @@ def quickstart_select_NGfuel_preset_I(*input):
     selection_id = df_input["Fuel_NG"].columns[3:][int(ctx.triggered_id[-1])]
     return f"{selection_id}"
 
+
 @app.callback(
     [Output({'type': 'input_Fuel_NG', 'index': ALL}, 'value')],
     Input("txt_NG_fuel_cost_Preset_Selection", "children"),
@@ -280,6 +295,7 @@ def quickstart_select_NGfuel_preset_I(*input):
 def quickstart_select_NGfuel_preset_II(input):
     return_lists = fill_inputfields(input, df_input["Fuel_NG"])
     return return_lists
+
 
 @app.callback(
     Output("txt_out1", "children"), Input("bt_collect", "n_clicks"),
@@ -305,6 +321,7 @@ def dev_button_initialCollectInput(*args):
     df.to_pickle("input4.pkl")
     return "ok"
 
+
 @app.callback(
     Output("txt_out2", "children"), Input("bt_update_collect", "n_clicks"),
     State({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
@@ -325,37 +342,58 @@ def dev_button_updateCollectInput(input, *args):
 
 @app.callback(
     Output("txt_out6", "children"), Input("bt_process_Input", "n_clicks"),
-    State({'type': 'input', 'index': ALL}, 'value'),
-    State({'type': 'fuel_NH3_input', 'index': ALL}, 'value'),
-    State({'type': 'fuel_NG_input', 'index': ALL}, 'value'), prevent_initial_call=True)
+    State({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
+    State({'type': 'input_SOFC', 'index': ALL}, 'value'),
+    State({'type': 'input_ICE', 'index': ALL}, 'value'),
+    State({'type': 'input_Financials', 'index': ALL}, 'value'),
+    State({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
+    State({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
+    prevent_initial_call=True)
 def dev_button_procSelection(*args):
-    # Collect all input variables and reformat to data table
+    # 1. Collect all input variables from data fields
+    # 2. Save data in DataClasses
+    # 3. Initialize System objects
+    # 4. Perform LCOE Calculation
+
+
     df = pd.DataFrame(columns=["nominal", "min", "max"])
 
-    hipowar_specific_input = {"name": "HiPowAR"}
-    SOFC_specific_input = {"name": "SOFC"}
-    ICE_specific_input = {"name": "ICE"}
-
     # Assignment of input fields to system based on name
-    for el in ctx.states_list[1]:
-        if el["id"]["index"].find("HiPowAR") >= 0:
-            par_str = el["id"]["index"]
-            par_name = par_str[par_str.find("HiPowAR") + 8:]
-            hipowar_specific_input[par_name] = el["value"]
-        elif el["id"]["index"].find("SOFC") >= 0:
-            par_str = el["id"]["index"]
-            par_name = par_str[par_str.find("SOFC") + 5:]
-            SOFC_specific_input[par_name] = el["value"]
-        elif el["id"]["index"].find("ICE") >= 0:
-            par_str = el["id"]["index"]
-            par_name = par_str[par_str.find("ICE") + 4:]
-            ICE_specific_input[par_name] = el["value"]
-        else:
-            print(f"Non assigned element: {el['id']['index']}")
+    dict_combined = {}
+    for li in ctx.states_list:
+        dict_name = li[0]["id"]["type"][6:]  # "HiPowar",....
+        dict_data = {"name": dict_name}
+        for el in li:
+            par = el["id"]["index"]
+            val = el["value"]
+            dict_data.update({par: val})
+        dict_combined.update({dict_name: dict_data})
+    print("debug")
+    # Initialization of DataClasses
+    system_name_list = ["HiPowAR", "ICE", "SOFC"] # ToDO: Global definition
+    DC_systems = {}
+    DC_additionals = {}
+    print("debug")
+    for key, dct in dict_combined.items():
+        if dct["name"] in system_name_list:
+            DC_systems.update({dct["name"]: from_dict(data_class=DC_SystemInput, data=dct)})
+        elif dct["name"] == "Financials":
+            DC_additionals.update({dct["name"]: from_dict(data_class=DC_FinancialInput, data=dct)})
+        elif dct["name"][:4] == "Fuel":
+            DC_additionals.update({dct["name"]: from_dict(data_class=DC_FuelInput, data=dct)})
 
-    print(hipowar_specific_input)
-    print(SOFC_specific_input)
-    print(ICE_specific_input)
+    print("debug")
+    Systems = {}
+    for key, dct in DC_systems.items():
+        Systems.update({key: System(dct)})
+
+    for key, system in Systems.items():
+        system.load_fuel_par(DC_additionals["Fuel_NH3"])
+        system.load_financial_par(DC_additionals["Financials"])
+        system.lcoe()
+    print("debug")
+
+
 
 @app.callback(
     Output("txt_out7", "children"), Input("bt_debugprint", "n_clicks"),
@@ -365,6 +403,7 @@ def dev_button_procSelection(*args):
 def dev_button_debugprint(*args):
     for el in ctx.states_list[0]:
         print(el)
+
 
 if __name__ == "__main__":
     app.run_server(debug=True, port=8888)

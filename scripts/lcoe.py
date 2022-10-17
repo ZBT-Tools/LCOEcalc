@@ -1,5 +1,5 @@
-
-from data_transfer import DC_FuelInput,DC_FinancialInput,DC_SystemInput
+#
+#from data_transfer import DC_FuelInput,DC_FinancialInput,DC_SystemInput
 import pandas as pd
 
 
@@ -10,7 +10,7 @@ class System:
         self.lcoe_val = None
         self.fin = None
         self.fuel = None
-        self.par = DC_SystemInput
+        self.p = DC_SystemInput
 
     def load_financial_par(self, DC_FinancialInput):
         self.fin = DC_FinancialInput
@@ -25,20 +25,20 @@ class System:
 
         # Investment Costs
         # ----------------------------
-        df.loc[0, "Investment"] = self.par.size * self.par.capex_Eur_kW
+        df.loc[0, "Investment"] = self.p.size_kW * self.p.capex_Eur_kW
         df.loc[1:, "Investment"] = 0
 
         # O&M Costs
         # ----------------------------
-        df.loc[1:, "OM"] = self.par.size * self.fin.operatinghoursyearly * self.par.opex_Eur_kWh
+        df.loc[1:, "OM"] = self.p.size_kW * self.fin.operatinghoursyearly * self.p.opex_Eur_kWh
 
         # Fuel Costs
         # ----------------------------
-        df.loc[1:, "Fuel"] = self.par.size * self.fin.operatinghoursyearly * self.fuel.cost_Eur_per_kW * 100 / self.par.eta_perc
+        df.loc[1:, "Fuel"] = self.p.size_kW * self.fin.operatinghoursyearly * self.fuel.cost_Eur_per_kWh * 100 / self.p.eta_perc
 
         # Electricity Geeration
         # ----------------------------
-        df.loc[1:, "Power"] = self.par.size * self.fin.operatinghoursyearly
+        df.loc[1:, "Power"] = self.p.size_kW * self.fin.operatinghoursyearly
 
         # Financial Accumulation
         # ----------------------------
