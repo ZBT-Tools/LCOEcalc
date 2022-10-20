@@ -15,11 +15,13 @@ from dash import Input, Output, dcc, html, ctx, State, MATCH, ALL
 from flask_caching import Cache
 from dacite import from_dict
 from scripts.lcoe import System
-from scripts.data_transfer import DC_FinancialInput,DC_SystemInput,DC_FuelInput
+from scripts.data_transfer import DC_FinancialInput, DC_SystemInput, DC_FuelInput
+import plotly.graph_objects as go
+import pickle
+import jsonpickle
+import datetime
 
-
-
-
+# Read input data
 df_input = pd.read_excel("input/Dash_LCOE_Configuration_v4.xlsx",
                          sheet_name=["Systems", "Financial", "Fuel_NH3", "Fuel_NG"])
 
@@ -30,14 +32,22 @@ cache = Cache(app.server, config={"CACHE_TYPE": "simple"})
 cache.clear()
 
 
-def input_row_v1(component, ident, text, disabled=[False, True, True]):
+def input_row_nom(component, ident, text, disabled=[False]):
     row = dbc.Row([
         dbc.Col(dbc.Label(text), width=6),
         dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}"}, type="text", size="sm",
+                          disabled=disabled[0]), width=2), ])
+    return row
+
+
+def input_row_nom_min_max(component, ident, text, disabled=[False, False, False]):
+    row = dbc.Row([
+        dbc.Col(dbc.Label(text), width=6),
+        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}"}, type="number", size="sm",
                           disabled=disabled[0]), width=2),
-        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_min"}, type="text", disabled=disabled[1],
+        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_min"}, type="number", disabled=disabled[1],
                           size="sm"), width=2),
-        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_max"}, type="text", disabled=disabled[2],
+        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_max"}, type="number", disabled=disabled[2],
                           size="sm"), width=2)])
     return row
 
@@ -49,13 +59,13 @@ def card_component_input(name: str, add_items: dict = {}):
             dbc.Col(dbc.Label("Nominal"), width=2),
             dbc.Col(dbc.Label("Min"), width=2),
             dbc.Col(dbc.Label("Max"), width=2)]),
-        input_row_v1(component=name, ident="size_kW", text="El. Output [kW]"),
-        input_row_v1(component=name, ident="capex_Eur_kW", text="Capex [€/kW]"),
-        input_row_v1(component=name, ident="opex_Eur_kWh", text="Opex (no Fuel) [€/kWh]"),
-        input_row_v1(component=name, ident="eta_perc", text="Efficiency [%]")]
+        input_row_nom(component=name, ident="size_kW", text="El. Output [kW]"),
+        input_row_nom_min_max(component=name, ident="capex_Eur_kW", text="Capex [€/kW]"),
+        input_row_nom_min_max(component=name, ident="opex_Eur_kWh", text="Opex (no Fuel) [€/kWh]"),
+        input_row_nom_min_max(component=name, ident="eta_perc", text="Efficiency [%]")]
     list_additional_rows = []
     for key, val in add_items.items():
-        rw = input_row_v1(component=name, ident=key, text=val)
+        rw = input_row_nom_min_max(component=name, ident=key, text=val)
         list_additional_rows.append(rw)
     card_body_rows.extend(list_additional_rows)
     card = dbc.Card([
@@ -72,7 +82,7 @@ def card_generic_input(component: str, header: str, ident: list, text: list):
             dbc.Col(dbc.Label("Min"), width=2),
             dbc.Col(dbc.Label("Max"), width=2)
             ]
-    rows.extend([input_row_v1(component=component, ident=id, text=tx) for id, tx in zip(ident, text)])
+    rows.extend([input_row_nom_min_max(component=component, ident=id, text=tx) for id, tx in zip(ident, text)])
 
     card = dbc.Card([
         dbc.CardHeader(header),
@@ -101,6 +111,8 @@ zbt_png = 'img/logo-zbt-duisburg.png'
 zbt_base64 = base64.b64encode(open(zbt_png, 'rb').read()).decode('ascii')
 
 app.layout = dbc.Container([
+    dcc.Store(id='storage', storage_type='memory'),
+    # Header Row
     dbc.Row([dbc.Col(html.H1("HiPowAR LCOE Tool"), width=4),
              dbc.Col(html.Img(src='data:image/png;base64,{}'.format(hipowar_base64), width=100)),
              dbc.Col(html.Img(src='data:image/png;base64,{}'.format(eu_base64), width=300)),
@@ -112,22 +124,23 @@ app.layout = dbc.Container([
                 dbc.AccordionItem([
                     dbc.Row([dbc.Col(generic_dropdown(id="dd_preset", label="System Presets",
                                                       elements=df_input["Systems"].columns[3:]), width=2),
-                             dbc.Col(html.P("select...", id="txt_Preset_Selection"), width=8)]),
+                             dbc.Col(html.P(df_input["Systems"].columns[3], id="txt_Preset_Selection"), width=8)]),
                     dbc.Row([dbc.Col(generic_dropdown(id="dd_Financial", label="Financial Presets",
                                                       elements=df_input["Financial"].columns[3:]), width=2),
-                             dbc.Col(html.P("select...", id="txt_Financial_Selection"), width=8)]),
+                             dbc.Col(html.P(df_input["Financial"].columns[3], id="txt_Financial_Selection"), width=8)]),
                     dbc.Row([dbc.Col(generic_dropdown(id="dd_NH3_fuel_cost", label="NH3 Cost Selector",
                                                       elements=df_input["Fuel_NH3"].columns[3:]), width=2),
-                             dbc.Col(html.P("select...", id="txt_NH3_fuel_cost_Preset_Selection"))]),
+                             dbc.Col(
+                                 html.P(df_input["Fuel_NH3"].columns[3], id="txt_NH3_fuel_cost_Preset_Selection"))]),
                     dbc.Row([dbc.Col(generic_dropdown(id="dd_NG_fuel_cost", label="NG Cost Selector",
                                                       elements=df_input["Fuel_NG"].columns[3:]), width=2),
-                             dbc.Col(html.P("select...", id="txt_NG_fuel_cost_Preset_Selection"))]),
-                ], title="Quick Start"),
+                             dbc.Col(html.P(df_input["Fuel_NG"].columns[3], id="txt_NG_fuel_cost_Preset_Selection"))]),
+                ], title="Preset Selection"),
                 dbc.AccordionItem([
                     dbc.Row([
                         dbc.Col(card_component_input("HiPowAR"), md=4),
                         dbc.Col(card_component_input("SOFC", add_items={"stacklifetime_hr": "Stack Lifetime [hr]",
-                                                                        "stackexchangecost_percCapex": "Stack Exchange Cost [% Capex"}),
+                                                                        "stackexchangecost_percCapex": "Stack Exchange Cost [% Capex]"}),
                                 md=4),
                         dbc.Col(card_component_input("ICE"), md=4),
                     ], )
@@ -148,13 +161,15 @@ app.layout = dbc.Container([
                                     dbc.Col(dbc.Label("Min"), width=2),
                                     dbc.Col(dbc.Label("Max"), width=2)]),
 
-                                input_row_v1(component="Fuel_NH3", ident="cost_Eur_per_kWh", text="NH3 cost [€/kWh]"),
-                                input_row_v1(component="Fuel_NH3", ident="costIncrease_percent_per_year",
-                                             text="NH3 cost increase [%/yr]"),
+                                input_row_nom_min_max(component="Fuel_NH3", ident="cost_Eur_per_kWh",
+                                                      text="NH3 cost [€/kWh]"),
+                                input_row_nom_min_max(component="Fuel_NH3", ident="costIncrease_percent_per_year",
+                                                      text="NH3 cost increase [%/yr]"),
                                 html.Hr(),
-                                input_row_v1(component="Fuel_NG", ident="cost_Eur_per_kWh", text="NG cost [€/kWh]"),
-                                input_row_v1(component="Fuel_NG", ident="costIncrease_percent_per_year",
-                                             text="NG cost increase [%/yr]")
+                                input_row_nom_min_max(component="Fuel_NG", ident="cost_Eur_per_kWh",
+                                                      text="NG cost [€/kWh]"),
+                                input_row_nom_min_max(component="Fuel_NG", ident="costIncrease_percent_per_year",
+                                                      text="NG cost increase [%/yr]")
                             ])
                         ]), md=4
                         ),
@@ -163,18 +178,7 @@ app.layout = dbc.Container([
                 ], title="General Settings", ),
                 dbc.AccordionItem([dbc.Row([
                     dbc.Col([
-                        dcc.Graph(
-                            figure={
-                                'data': [
-                                    {'x': [1, 2, 3], 'y': [4, 1, 2], 'type': 'bar', 'name': 'HiPowAR'},
-                                    {'x': [1, 2, 3], 'y': [2, 4, 5], 'type': 'bar', 'name': 'NG-SOFC'},
-                                    {'x': [1, 2, 3], 'y': [5, 2, 1], 'type': 'bar', 'name': 'NG-ICE'}
-                                ],
-                                'layout': {
-                                    'title': 'Levelized Cost of Electricity Comparison'
-                                }
-                            }
-                        )
+                        dcc.Graph(id='lcoe-graph')
                     ])
                 ])], title="LCOE Plots"),
                 dbc.AccordionItem([], title="LCOE Sensitivity Study"),
@@ -204,7 +208,7 @@ app.layout = dbc.Container([
 # Callbacks
 # --------------------------------------------------------------
 # --------------------------------------------------------------
-# --------------------------------------------------------------
+
 
 def fill_inputfields(input, df):
     return_lists = []
@@ -223,6 +227,9 @@ def fill_inputfields(input, df):
     return return_lists
 
 
+# Initialization Callback
+
+
 @app.callback(
     Output("txt_Preset_Selection", "children"),
     [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_input["Systems"].columns[3:]))],
@@ -237,7 +244,8 @@ def quickstart_select_preset_I(*inputs):
     Output({'type': 'input_SOFC', 'index': ALL}, 'value'),
     Output({'type': 'input_ICE', 'index': ALL}, 'value'),
     Input("txt_Preset_Selection", "children"),
-    prevent_initial_call=True)
+    # prevent_initial_call=True
+)
 def quickstart_select_preset_II(input):
     return_lists = fill_inputfields(input, df_input["Systems"])
     return return_lists
@@ -254,8 +262,7 @@ def quickstart_select_financial_I(*inputs):
 
 @app.callback(
     [Output({'type': 'input_Financials', 'index': ALL}, 'value')],
-    Input("txt_Financial_Selection", "children"),
-    prevent_initial_call=True)
+    Input("txt_Financial_Selection", "children"))
 def quickstart_select_financial_II(input):
     return_lists = fill_inputfields(input, df_input["Financial"])
     return return_lists
@@ -272,8 +279,7 @@ def quickstart_select_NH3fuel_preset_I(*input):
 
 @app.callback(
     [Output({'type': 'input_Fuel_NH3', 'index': ALL}, 'value')],
-    Input("txt_NH3_fuel_cost_Preset_Selection", "children"),
-    prevent_initial_call=True)
+    Input("txt_NH3_fuel_cost_Preset_Selection", "children"), )
 def quickstart_select_NH3fuel_preset_II(input):
     return_lists = fill_inputfields(input, df_input["Fuel_NH3"])
     return return_lists
@@ -290,11 +296,34 @@ def quickstart_select_NGfuel_preset_I(*input):
 
 @app.callback(
     [Output({'type': 'input_Fuel_NG', 'index': ALL}, 'value')],
-    Input("txt_NG_fuel_cost_Preset_Selection", "children"),
-    prevent_initial_call=True)
+    Input("txt_NG_fuel_cost_Preset_Selection", "children"), )
 def quickstart_select_NGfuel_preset_II(input):
     return_lists = fill_inputfields(input, df_input["Fuel_NG"])
     return return_lists
+
+
+@app.callback(
+    Output('lcoe-graph', 'figure'), Input("txt_out6", "children"),
+    State('storage', 'data'),
+    prevent_initial_call=True)
+def lcoeplots_update(input, state):
+    # Read from storage
+    systems = jsonpickle.loads(state)
+    systems = pickle.loads(systems)
+    print("loaded")
+
+    # Simple LCOE Comparison Plot
+    y0 = systems["HiPowAR"].lcoe_table["LCOE"]
+    y1 = systems["SOFC"].lcoe_table["LCOE"]
+    y2 = systems["ICE"].lcoe_table["LCOE"]
+    fig = go.Figure()
+    fig.add_trace(go.Box(y=y0, name='HiPowAR',
+                         marker_color='indianred',boxpoints='all'))
+    fig.add_trace(go.Box(y=y1, name='SOFC',
+                         marker_color='lightseagreen',boxpoints='all'))
+    fig.add_trace(go.Box(y=y2, name='ICE',
+                         marker_color='lightskyblue',boxpoints='all'))
+    return fig
 
 
 @app.callback(
@@ -341,7 +370,7 @@ def dev_button_updateCollectInput(input, *args):
 
 
 @app.callback(
-    Output("txt_out6", "children"), Input("bt_process_Input", "n_clicks"),
+    [Output("txt_out6", "children"), Output("storage", "data")], Input("bt_process_Input", "n_clicks"),
     State({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
     State({'type': 'input_SOFC', 'index': ALL}, 'value'),
     State({'type': 'input_ICE', 'index': ALL}, 'value'),
@@ -354,26 +383,52 @@ def dev_button_procSelection(*args):
     # 2. Save data in DataClasses
     # 3. Initialize System objects
     # 4. Perform LCOE Calculation
+    # 5. Save Systems in store locally
 
-
-    df = pd.DataFrame(columns=["nominal", "min", "max"])
-
-    # Assignment of input fields to system based on name
+    # 1. Collect all input variables from data fields
+    # ------------------------------------------------------------------------------------------------------------------
     dict_combined = {}
     for li in ctx.states_list:
         dict_name = li[0]["id"]["type"][6:]  # "HiPowar",....
         dict_data = {"name": dict_name}
+
+        # Identify unique elements
+        listelements = []
         for el in li:
             par = el["id"]["index"]
-            val = el["value"]
-            dict_data.update({par: val})
+            if (par[-4:] == "_max") or (par[-4:] == "_min"):
+                par = par[:-4]
+            listelements.append(par)
+        unique_listelements = list(set(listelements))
+
+        # Initialize Data Dictionary
+        for le in unique_listelements:
+            #
+            matching = [s for s in listelements if le in s]
+            dict_data.update({le: [None] * len(matching)})
+
+        # Fill Data Dictionary
+        for el in li:
+            par = el["id"]["index"]
+            if par[-4:] == "_max":
+                par = par[:-4]
+                dict_data[par][-1] = el["value"]
+            elif par[-4:] == "_min":
+                par = par[:-4]
+                dict_data[par][-2] = el["value"]
+            else:
+                dict_data[par][0] = el["value"]
+
         dict_combined.update({dict_name: dict_data})
-    print("debug")
+    # print("debug")
     # Initialization of DataClasses
-    system_name_list = ["HiPowAR", "ICE", "SOFC"] # ToDO: Global definition
+    system_name_list = ["HiPowAR", "ICE", "SOFC"]  # ToDO: Global definition
     DC_systems = {}
     DC_additionals = {}
-    print("debug")
+    # print("debug")
+
+    # 2. Save data in DataClasses
+    # ------------------------------------------------------------------------------------------------------------------
     for key, dct in dict_combined.items():
         if dct["name"] in system_name_list:
             DC_systems.update({dct["name"]: from_dict(data_class=DC_SystemInput, data=dct)})
@@ -382,17 +437,30 @@ def dev_button_procSelection(*args):
         elif dct["name"][:4] == "Fuel":
             DC_additionals.update({dct["name"]: from_dict(data_class=DC_FuelInput, data=dct)})
 
-    print("debug")
-    Systems = {}
+    # 3. Initialize System objects
+    # ------------------------------------------------------------------------------------------------------------------
+    systems = {}
     for key, dct in DC_systems.items():
-        Systems.update({key: System(dct)})
+        systems.update({key: System(dct)})
 
-    for key, system in Systems.items():
+    for key, system in systems.items():
         system.load_fuel_par(DC_additionals["Fuel_NH3"])
         system.load_financial_par(DC_additionals["Financials"])
-        system.lcoe()
-    print("debug")
 
+        # 4. Perform LCOE Calculation'
+        # --------------------------------------------------------------------------------------------------------------
+        system.prep_lcoe_input()
+        system.lcoe_table["LCOE"] = system.lcoe_table.apply(lambda row: systems[key].lcoe(row), axis=1)
+
+    # 5. Store data in dcc.storage object
+    # -----------------------------------------------------------------------------------------------------------------
+
+    data = pickle.dumps(systems)
+    data = jsonpickle.dumps(data)
+    # load = pickle.loads(pk)
+
+    # https://github.com/jsonpickle/jsonpickle, as json.dumps can only handle simple varianles
+    return [datetime.datetime.now(), data]
 
 
 @app.callback(
