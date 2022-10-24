@@ -20,9 +20,11 @@ import plotly.graph_objects as go
 import pickle
 import jsonpickle
 import datetime
+from itertools import product
+from plotly.subplots import make_subplots
 
 # Read input data
-df_input = pd.read_excel("input/Dash_LCOE_Configuration_v4.xlsx",
+df_input = pd.read_excel("input/Dash_LCOE_Configuration.xlsx",
                          sheet_name=["Systems", "Financial", "Fuel_NH3", "Fuel_NG"])
 
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -45,10 +47,12 @@ def input_row_nom_min_max(component, ident, text, disabled=[False, False, False]
         dbc.Col(dbc.Label(text), width=6),
         dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}"}, type="number", size="sm",
                           disabled=disabled[0]), width=2),
-        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_min"}, type="number", disabled=disabled[1],
-                          size="sm"), width=2),
-        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_max"}, type="number", disabled=disabled[2],
-                          size="sm"), width=2)])
+        dbc.Col(
+            dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_min"}, type="number", disabled=disabled[1],
+                      size="sm"), width=2),
+        dbc.Col(
+            dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_max"}, type="number", disabled=disabled[2],
+                      size="sm"), width=2)])
     return row
 
 
@@ -181,7 +185,13 @@ app.layout = dbc.Container([
                         dcc.Graph(id='lcoe-graph')
                     ])
                 ])], title="LCOE Plots"),
-                dbc.AccordionItem([], title="LCOE Sensitivity Study"),
+                dbc.AccordionItem([
+                    dbc.Row([
+                        #dbc.Col([dcc.Graph(id='lcoe-graph-sensitivity')]),
+                        dbc.Col([dcc.Graph(id='lcoe-graph-sensitivity2')]),
+                    ]),
+
+                ], title="LCOE Sensitivity Study"),
                 dbc.AccordionItem([], title="About"),
                 dbc.AccordionItem([
                     dbc.Row([dbc.Col(dbc.Button("Initial Data Collect", id="bt_collect"), width=2),
@@ -306,11 +316,11 @@ def quickstart_select_NGfuel_preset_II(input):
     Output('lcoe-graph', 'figure'), Input("txt_out6", "children"),
     State('storage', 'data'),
     prevent_initial_call=True)
-def lcoeplots_update(input, state):
+def lcoeplot_update(input, state):
     # Read from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
-    print("loaded")
+    #print("loaded")
 
     # Simple LCOE Comparison Plot
     y0 = systems["HiPowAR"].lcoe_table["LCOE"]
@@ -318,11 +328,248 @@ def lcoeplots_update(input, state):
     y2 = systems["ICE"].lcoe_table["LCOE"]
     fig = go.Figure()
     fig.add_trace(go.Box(y=y0, name='HiPowAR',
-                         marker_color='indianred',boxpoints='all'))
+                         # marker_color='indianred',
+                         boxpoints='all',
+                         marker_color='rgb(160,7,97)',
+                         line_color='rgb(31,148,175)'
+                         ))
     fig.add_trace(go.Box(y=y1, name='SOFC',
-                         marker_color='lightseagreen',boxpoints='all'))
+                         marker_color='lightseagreen', boxpoints='all'))
     fig.add_trace(go.Box(y=y2, name='ICE',
-                         marker_color='lightskyblue',boxpoints='all'))
+                         marker_color='lightskyblue', boxpoints='all'))
+    return fig
+
+
+# @app.callback(
+#     Output('lcoe-graph-sensitivity', 'figure'), Input("txt_out6", "children"),
+#     State('storage', 'data'),
+#     prevent_initial_call=True)
+# def lcoesensitivity_plot_sensitivity_update(input, state):
+#     # Read from storage
+#     systems = jsonpickle.loads(state)
+#     systems = pickle.loads(systems)
+#     print("loaded")
+#
+#     # Influence of single parameter
+#     # ------------------------------------
+#     # (Search in table)
+#     # For each parameter keep all other parameter at nominal value and modify
+#     # single parameter
+#     # Add "modpar" column to lcoe Table, so that groupby can be used for plots
+#     # #ToDO: Here or in lcoe.py?
+#
+#     fig = make_subplots(rows=1, cols=2, shared_yaxes=True)
+#
+#     tb = systems["HiPowAR"].lcoe_table.copy()
+#     # result_df = pd.DataFrame(columns=["modpar"])
+#
+#     variation_pars = tb.columns.drop(["p_size_kW", "LCOE"])
+#     variation_pars = variation_pars.drop([x for x in variation_pars if x[0] != "p"])
+#
+#     result_df = pd.DataFrame(columns=tb.columns)
+#     result_df.loc["nominal"] = tb.loc["nominal"]
+#
+#     for modpar in variation_pars:
+#         # Create query string:
+#         qs = ""
+#         cond = [f"{parm} == {result_df.loc['nominal', parm]}" for parm in variation_pars.drop(modpar)]
+#         for c in cond:
+#             qs = qs + c + " & "
+#         qs = qs[:-3]
+#         tbred = tb.query(qs)
+#         rw = tbred.nsmallest(1, modpar)
+#         rw["modpar"] = modpar
+#         result_df = pd.concat([result_df, rw])
+#         rw = tbred.nlargest(1, modpar)
+#         rw["modpar"] = modpar
+#         result_df = pd.concat([result_df, rw])
+#
+#     result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]
+#
+#     # fig = go.Figure()
+#     for name, group in result_df.groupby('modpar'):
+#         trace = go.Scatter()
+#         trace.name = name
+#         trace.x = [name]
+#         trace.y = [result_df.loc["nominal", "LCOE"]]
+#         trace.error_y = dict(
+#             type='data',
+#             symmetric=False,
+#             array=[group["diff"].max()],
+#             arrayminus=[abs(group["diff"].min())])
+#         fig.add_trace(trace, row=1, col=1)
+#
+#     fig.add_hline(y=result_df.loc["nominal", "LCOE"])
+#
+#     ###################################################################################################################
+#
+#     tb = systems["HiPowAR"].lcoe_table.copy()
+#     # result_df = pd.DataFrame(columns=["modpar"])
+#
+#     variation_pars = tb.columns.drop(["p_size_kW", "LCOE"])
+#     variation_pars = variation_pars.drop([x for x in variation_pars if x[0] == "p"])
+#
+#     result_df = pd.DataFrame(columns=tb.columns)
+#     result_df.loc["nominal"] = tb.loc["nominal"]
+#
+#     for modpar in variation_pars:
+#         # Create query string:
+#         qs = ""
+#         cond = [f"{parm} == {result_df.loc['nominal', parm]}" for parm in variation_pars.drop(modpar)]
+#         for c in cond:
+#             qs = qs + c + " & "
+#         qs = qs[:-3]
+#         tbred = tb.query(qs)
+#         rw = tbred.nsmallest(1, modpar)
+#         rw["modpar"] = modpar
+#         result_df = pd.concat([result_df, rw])
+#         rw = tbred.nlargest(1, modpar)
+#         rw["modpar"] = modpar
+#         result_df = pd.concat([result_df, rw])
+#
+#     result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]
+#
+#     # fig = go.Figure()
+#     for name, group in result_df.groupby('modpar'):
+#         trace = go.Scatter()
+#         trace.name = name
+#         trace.x = [name]
+#         trace.y = [result_df.loc["nominal", "LCOE"]]
+#         trace.error_y = dict(
+#             type='data',
+#             symmetric=False,
+#             array=[group["diff"].max()],
+#             arrayminus=[abs(group["diff"].min())])
+#         fig.add_trace(trace, row=1, col=2, )
+#
+#     return fig
+
+
+@app.callback(
+    Output('lcoe-graph-sensitivity2', 'figure'), Input("txt_out6", "children"),
+    State('storage', 'data'),
+    prevent_initial_call=True)
+def lcoesensitivity_plot_sensitivity2_update(input, state):
+    # Read from storage
+    systems = jsonpickle.loads(state)
+    systems = pickle.loads(systems)
+    print("loaded")
+
+    # Influence of single parameter
+    # ------------------------------------
+    # (Search in table)
+    # For each parameter keep all other parameter at nominal value and modify
+    # single parameter
+    # Add "modpar" column to lcoe Table, so that groupby can be used for plots
+    # #ToDO: Here or in lcoe.py?
+    colordict = {"HiPowAR": 'rgb(160,7,97)', "SOFC": 'lightseagreen', "ICE": 'lightskyblue'}
+
+    fig = make_subplots(rows=1, cols=2, shared_yaxes=True)
+
+    for system in ["HiPowAR", "SOFC", "ICE"]:
+
+        tb = systems[system].lcoe_table.copy()
+        # result_df = pd.DataFrame(columns=["modpar"])
+
+        variation_pars = tb.columns.drop(["p_size_kW", "LCOE"])
+        variation_pars = variation_pars.drop([x for x in variation_pars if x[0] != "p"])
+
+        result_df = pd.DataFrame(columns=tb.columns)
+        result_df.loc["nominal"] = tb.loc["nominal"]
+        result_df_temp = result_df.copy()
+
+        for modpar in variation_pars:
+            # Create query string:
+            qs = ""
+            cond = [f"{parm} == {result_df_temp.loc['nominal', parm]}" for parm in variation_pars.drop(modpar)]
+            for c in cond:
+                qs = qs + c + " & "
+            qs = qs[:-3]
+            print(f"Query is:{qs}")
+            print(f"Query end")
+            tbred = tb.query(qs)
+            rw = tbred.nsmallest(1, modpar)
+            rw["modpar"] = modpar
+            result_df = pd.concat([result_df, rw])
+            rw = tbred.nlargest(1, modpar)
+            rw["modpar"] = modpar
+            result_df = pd.concat([result_df, rw])
+
+        result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]
+
+        result_df.drop_duplicates(keep='first',inplace=True)
+
+        # fig = go.Figure()
+        for name, group in result_df.groupby('modpar'):
+            trace = go.Box()
+            trace.name = system
+            trace.x = [name] * 3
+            trace.y = [result_df.loc["nominal", "LCOE"],
+                       group["LCOE"].max(),
+                       group["LCOE"].min()
+                       ]
+            trace.marker["color"] = colordict[system]
+            # trace.error_y = dict(
+            #    type='data',
+            #    symmetric=False,
+            #    array=[group["diff"].max()],
+            #    arrayminus=[abs(group["diff"].min())])
+            fig.add_trace(trace, row=1, col=1)
+
+        fig.add_hline(y=result_df.loc["nominal", "LCOE"],line_color=colordict[system])
+
+        ###################################################################################################################
+
+        tb = systems[system].lcoe_table.copy()
+        # result_df = pd.DataFrame(columns=["modpar"])
+
+        variation_pars = tb.columns.drop(["p_size_kW", "LCOE"])
+        variation_pars = variation_pars.drop([x for x in variation_pars if x[0] == "p"])
+
+        result_df = pd.DataFrame(columns=tb.columns)
+        result_df.loc["nominal"] = tb.loc["nominal"]
+
+        for modpar in variation_pars:
+            # Create query string:
+            qs = ""
+            cond = [f"{parm} == {result_df.loc['nominal', parm]}" for parm in variation_pars.drop(modpar)]
+            for c in cond:
+                qs = qs + c + " & "
+            qs = qs[:-3]
+            tbred = tb.query(qs)
+            rw = tbred.nsmallest(1, modpar)
+            rw["modpar"] = modpar
+            result_df = pd.concat([result_df, rw])
+            rw = tbred.nlargest(1, modpar)
+            rw["modpar"] = modpar
+            result_df = pd.concat([result_df, rw])
+
+        result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]
+
+        # fig = go.Figure()
+        for name, group in result_df.groupby('modpar'):
+            trace = go.Box()
+            trace.name = system
+            trace.x = [name] * 3
+            trace.y = [result_df.loc["nominal", "LCOE"],
+                       group["LCOE"].max(),
+                       group["LCOE"].min()]
+            trace.marker["color"] = colordict[system]
+            # trace.error_y = dict(
+            #    type='data',
+            #    symmetric=False,
+            #    array=[group["diff"].max()],
+            #    arrayminus=[abs(group["diff"].min())])
+            fig.add_trace(trace, row=1, col=2, )
+
+        fig.add_hline(y=result_df.loc["nominal", "LCOE"], line_color=colordict[system])
+
+    fig.update_layout(
+        yaxis_title='LCOE [€/kW]',
+        showlegend=False,
+        boxmode='group'  # group together boxes of the different traces for each value of x
+    )
+
     return fig
 
 
@@ -385,6 +632,7 @@ def dev_button_procSelection(*args):
     # 4. Perform LCOE Calculation
     # 5. Save Systems in store locally
 
+    print('StartProc:', datetime.datetime.now())
     # 1. Collect all input variables from data fields
     # ------------------------------------------------------------------------------------------------------------------
     dict_combined = {}
@@ -449,17 +697,26 @@ def dev_button_procSelection(*args):
 
         # 4. Perform LCOE Calculation'
         # --------------------------------------------------------------------------------------------------------------
-        system.prep_lcoe_input()
+        print('Start Prep:', datetime.datetime.now())
+        system.prep_lcoe_input(mode="all")
+        #system.prep_lcoe_input(mode="all_minmax")
+        print('Start Calc:', datetime.datetime.now())
         system.lcoe_table["LCOE"] = system.lcoe_table.apply(lambda row: systems[key].lcoe(row), axis=1)
+        print('End Calc:', datetime.datetime.now())
+        system.lcoe_table = system.lcoe_table.apply(pd.to_numeric)
 
     # 5. Store data in dcc.storage object
     # -----------------------------------------------------------------------------------------------------------------
-
+    # https://github.com/jsonpickle/jsonpickle, as json.dumps can only handle simple variables
+    # Info: Eigentlich sollte jsonpickle reichen, um dict mit Klassenobjekten, in denen DataFrames sind, zu speichern,
+    #       Es gibt jedoch Fehlermeldungen auf Speicher-Pointer-Ebene. Daher wird Datenstruktur vorher in pickle (Binärformat)
+    #       gespeichert und dieser anschließend in json konvertiert.
+    # Konvertierung in json ist notwendig für lokalen dcc storage.
+    #
     data = pickle.dumps(systems)
     data = jsonpickle.dumps(data)
     # load = pickle.loads(pk)
 
-    # https://github.com/jsonpickle/jsonpickle, as json.dumps can only handle simple varianles
     return [datetime.datetime.now(), data]
 
 

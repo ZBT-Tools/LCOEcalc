@@ -2,6 +2,7 @@
 # from data_transfer import DC_FuelInput,DC_FinancialInput,DC_SystemInput
 import pandas as pd
 from statistics import median
+from itertools import product
 
 
 class System:
@@ -19,7 +20,7 @@ class System:
     def load_fuel_par(self, DC_FuelInput):
         self.fuel = DC_FuelInput
 
-    def prep_lcoe_input(self):
+    def prep_lcoe_input(self, mode="minmax"):
         df = pd.DataFrame(columns=["p_size_kW",
                                    "p_capex_Eur_kW",
                                    "p_opex_Eur_kWh",
@@ -39,16 +40,36 @@ class System:
                    "fuel_cost_Eur_per_kWh": self.fuel.cost_Eur_per_kWh}
 
         # Simplest parameter: ALl min, all nominal, all max
+
         for key, val in mapping.items():
             df.loc["min", key] = min(val)
             df.loc["nominal", key] = median(val)
             df.loc["max", key] = max(val)
 
+        if mode == "all":
+            # All combinations
+            df2 = pd.DataFrame(list(product(*[val for key, val in mapping.items()])),
+                               columns=[key for key, val in mapping.items()])
+            df = pd.concat([df, df2])
+
+        elif mode == "all_minmax":
+            # All combinations of each min and max
+            # ToDo: Wir brauchen Tabelle, bei der alles systematisch variiert wird.
+            # Also immer einen Min/Max, rest nominal
+
+            l1 = [val for key, val in mapping.items()]
+            l2 = [list(set([min(le), max(le)])) for le in l1]
+
+            df2 = pd.DataFrame(list(product(*l2)),
+                               columns=[key for key, val in mapping.items()])
+            df = pd.concat([df, df2])
+
         self.lcoe_table = df
 
     def lcoe(self, inp: pd.core.series.Series):
         """..."""
-        df = pd.DataFrame(index=range(0, inp.fin_lifetime_yr + 1, 1), columns=["Investment", "OM", "Fuel", "Power"])
+        df = pd.DataFrame(index=range(0, int(inp.fin_lifetime_yr) + 1, 1),
+                          columns=["Investment", "OM", "Fuel", "Power"])
         df.loc[0, :] = 0
 
         # Investment Costs
