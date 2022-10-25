@@ -698,8 +698,8 @@ def dev_button_procSelection(*args):
         # 4. Perform LCOE Calculation'
         # --------------------------------------------------------------------------------------------------------------
         print('Start Prep:', datetime.datetime.now())
-        system.prep_lcoe_input(mode="all")
-        #system.prep_lcoe_input(mode="all_minmax")
+        #system.prep_lcoe_input(mode="all")
+        system.prep_lcoe_input(mode="all_minmax")
         print('Start Calc:', datetime.datetime.now())
         system.lcoe_table["LCOE"] = system.lcoe_table.apply(lambda row: systems[key].lcoe(row), axis=1)
         print('End Calc:', datetime.datetime.now())

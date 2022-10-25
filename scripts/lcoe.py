@@ -57,12 +57,29 @@ class System:
             # ToDo: Wir brauchen Tabelle, bei der alles systematisch variiert wird.
             # Also immer einen Min/Max, rest nominal
 
+            # All possible combinations of all min & max values
             l1 = [val for key, val in mapping.items()]
             l2 = [list(set([min(le), max(le)])) for le in l1]
 
             df2 = pd.DataFrame(list(product(*l2)),
                                columns=[key for key, val in mapping.items()])
             df = pd.concat([df, df2])
+
+            # All possible combinations of one variable min & max values, all others nominal
+            df3 = pd.DataFrame(columns=[key for key, val in mapping.items()])
+            for key, val in mapping.items():
+                # Create dict
+                dataset_min = df.loc["nominal"].to_dict()
+                dataset_max = df.loc["nominal"].to_dict()
+                dataset_min[key] = min(val)
+                dataset_max[key] = max(val)
+                df3 = pd.concat([df3, pd.DataFrame([dataset_max, dataset_min])])
+
+            df = pd.concat([df, df3])
+
+
+
+
 
         self.lcoe_table = df
 
