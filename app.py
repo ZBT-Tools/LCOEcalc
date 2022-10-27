@@ -49,37 +49,37 @@ cache.clear()
 # ----------------------------------------------------------------------------------------------------------------------
 
 # Parameter input row with single input "nominal"
-def input_row_nom(component, ident, text, disabled=None):
-    print("!!! DEPRECATED: input_row_nom")
-    if disabled is None:
-        disabled = [False]
-    row = dbc.Row([
-        dbc.Col(dbc.Label(text), width=6),
-        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}"}, type="text", size="sm",
-                          disabled=disabled[0]), width=2), ])
-    return row
+# def input_row_nom(component, ident, text, disabled=None):
+#     print("!!! DEPRECATED: input_row_nom")
+#     if disabled is None:
+#         disabled = [False]
+#     row = dbc.Row([
+#         dbc.Col(dbc.Label(text), width=6),
+#         dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}"}, type="text", size="sm",
+#                           disabled=disabled[0]), width=2), ])
+#     return row
 
 
 # Parameter input row with three inputs "nominal","min","max"
-def input_row_nom_min_max(component, ident, text, disabled=None):
-    print("!!! DEPRECATED: input_row_nom_min_max")
-    if disabled is None:
-        disabled = [False, False, False]
-    row = dbc.Row([
-        dbc.Col(dbc.Label(text), width=6),
-        dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}"}, type="number", size="sm",
-                          disabled=disabled[0]), width=2),
-        dbc.Col(
-            dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_min"}, type="number", disabled=disabled[1],
-                      size="sm"), width=2),
-        dbc.Col(
-            dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_max"}, type="number", disabled=disabled[2],
-                      size="sm"), width=2)])
-    return row
+# def input_row_nom_min_max(component, ident, text, disabled=None):
+#     print("!!! DEPRECATED: input_row_nom_min_max")
+#     if disabled is None:
+#         disabled = [False, False, False]
+#     row = dbc.Row([
+#         dbc.Col(dbc.Label(text), width=6),
+#         dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}"}, type="number", size="sm",
+#                           disabled=disabled[0]), width=2),
+#         dbc.Col(
+#             dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_min"}, type="number", disabled=disabled[1],
+#                       size="sm"), width=2),
+#         dbc.Col(
+#             dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_max"}, type="number", disabled=disabled[2],
+#                       size="sm"), width=2)])
+#     return row
 
 
 # Generalized input row
-def input_row_general(component: str, ident: str, text: str, n_inputfields: int,
+def input_row_generic(component: str, ident: str, text: str, n_inputfields: int,
                       postfixes: list = None, widths: list = None,
                       disabled: list = None) -> dbc.Row:
     """
@@ -130,51 +130,61 @@ def input_row_general(component: str, ident: str, text: str, n_inputfields: int,
 
 
 # Generalized system definition card, containing multiple input rows
-def card_component_input(name: str, add_items: dict = None) -> dbc.Card:
-    """
-
-    :param name: Card Heading
-    :param add_items: Dict of additional input_row_general() input, structure
-                        {ident: [**kwargs]}
-    :return: dbc.Card
-    """
-    card_body_rows = [
-        # Heading Row
-        dbc.Row([
-            dbc.Col(width=6),
-            dbc.Col(dbc.Label("Nominal"), width=2),
-            dbc.Col(dbc.Label("Min"), width=2),
-            dbc.Col(dbc.Label("Max"), width=2)]),
-
-        # Standard system input rows
-        input_row_general(component=name, ident="size_kW", text="El. Output [kW]", n_inputfields=1),
-        input_row_general(component=name, ident="capex_Eur_kW", text="Capex [€/kW]", n_inputfields=3),
-        input_row_general(component=name, ident="opex_Eur_kWh", text="Opex (no Fuel) [€/kWh]", n_inputfields=3),
-        input_row_general(component=name, ident="eta_perc", text="Efficiency [%]", n_inputfields=3)]
-
-    # Add additional rows
-    list_additional_rows = []
-    for key, val in add_items.items():
-        rw = input_row_general(component=name, ident=key, **val)
-        card_body_rows.append(rw)
-        #list_additional_rows.append(rw)
-    #card_body_rows.extend(list_additional_rows)
-    card = dbc.Card([
-        dbc.CardHeader(f"{name}"),
-        dbc.CardBody([
-            html.Div(card_body_rows)])])
-    return card
+# def old_card_component_input(name: str, add_items: dict = None) -> dbc.Card:
+#     """
+#
+#     :param name: Card Heading
+#     :param add_items: Dict of additional input_row_general() input, structure
+#                         {ident: [**kwargs]}
+#     :return: dbc.Card
+#     """
+#     print("Deprecated")
+#     card_body_rows = [
+#         # Heading Row
+#         dbc.Row([
+#             dbc.Col(width=6),
+#             dbc.Col(dbc.Label("Nominal"), width=2),
+#             dbc.Col(dbc.Label("Min"), width=2),
+#             dbc.Col(dbc.Label("Max"), width=2)]),
+#
+#         # Standard system input rows
+#         input_row_general(component=name, ident="size_kW", text="El. Output [kW]", n_inputfields=1),
+#         input_row_general(component=name, ident="capex_Eur_kW", text="Capex [€/kW]", n_inputfields=3),
+#         input_row_general(component=name, ident="opex_Eur_kWh", text="Opex (no Fuel) [€/kWh]", n_inputfields=3),
+#         input_row_general(component=name, ident="eta_perc", text="Efficiency [%]", n_inputfields=3)]
+#
+#     # Add additional rows
+#     list_additional_rows = []
+#     for key, val in add_items.items():
+#         rw = input_row_general(component=name, ident=key, **val)
+#         card_body_rows.append(rw)
+#         # list_additional_rows.append(rw)
+#         # card_body_rows.extend(list_additional_rows)
+#     card = dbc.Card([
+#         dbc.CardHeader(f"{name}"),
+#         dbc.CardBody([
+#             html.Div(card_body_rows)])])
+#     return card
 
 
 # General Card definition with input rows
-def card_generic_input(component: str, header: str, ident: list, text: list):
-    # Create Input rows
-    rows = [dbc.Col(width=6),
-            dbc.Col(dbc.Label("Nominal"), width=2),
-            dbc.Col(dbc.Label("Min"), width=2),
-            dbc.Col(dbc.Label("Max"), width=2)
-            ]
-    rows.extend([input_row_nom_min_max(component=component, ident=id, text=tx) for id, tx in zip(ident, text)])
+def input_card_generic(component: str, header: str, rowinputs: dict) -> dbc.Card:
+    """
+    :param rowinputs:
+    :param component:
+    :param header:
+    :return:
+    """
+
+    # LCOE Tool specific column definition: 4 Columns
+    rows = [dbc.Row([dbc.Col(width=6),
+                     dbc.Col(dbc.Label("Nominal"), width=2),
+                     dbc.Col(dbc.Label("Min"), width=2),
+                     dbc.Col(dbc.Label("Max"), width=2)
+                     ])]
+    rws = [input_row_general(component=component, ident=key, text=val["text"], n_inputfields=3) for key, val in
+           rowinputs]
+    rows.extend(rws)
 
     card = dbc.Card([
         dbc.CardHeader(header),
@@ -182,6 +192,19 @@ def card_generic_input(component: str, header: str, ident: list, text: list):
             html.Div([
                 dbc.Row(rows)
             ])])])
+    return card
+
+
+def input_card_component(component: str, header: str, rowinputs: dict = None) -> dbc.Card:
+    # Component Specific input
+    extended_rowInput = {}
+    extended_rowInput["size_kW"] = {"text": "El. Output [kW]", "n_inputfields": 1}
+    extended_rowInput["capex_Eur_kW"] = {"text": "Capex [€/kW]", "n_inputfields": 3}
+    extended_rowInput["opex_Eur_kWh"] = {"text": "Opex (no Fuel) [€/kWh]", "n_inputfields": 3}
+    extended_rowInput["eta_perc"] = {"text": "Efficiency [%]", "n_inputfields": 3}
+    extended_rowInput.update(rowinputs)
+
+    card = card_generic_input(component, header, extended_rowInput)
     return card
 
 
