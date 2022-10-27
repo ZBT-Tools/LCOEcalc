@@ -231,7 +231,7 @@ def fill_inputfields(input, df):
                 return_list.append(
                     df.loc[(df.component == comp) & (df.parameter == par), input].item())
             except:
-                print(f"No data found for {comp},{par}")
+                #print(f"No data found for {comp},{par}")
                 return_list.append(None)
         return_lists.append(return_list)
     return return_lists
@@ -337,6 +337,11 @@ def lcoeplot_update(input, state):
                          marker_color='lightseagreen', boxpoints='all'))
     fig.add_trace(go.Box(y=y2, name='ICE',
                          marker_color='lightskyblue', boxpoints='all'))
+
+    fig.update_layout(
+        title="Levelized Cost of Electricity ",
+        #xaxis_title="",
+        yaxis_title="LCOE [€/kW]")
     return fig
 
 
@@ -453,7 +458,7 @@ def lcoesensitivity_plot_sensitivity2_update(input, state):
     # Read from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
-    print("loaded")
+    #print("loaded")
 
     # Influence of single parameter
     # ------------------------------------
@@ -464,7 +469,10 @@ def lcoesensitivity_plot_sensitivity2_update(input, state):
     # #ToDO: Here or in lcoe.py?
     colordict = {"HiPowAR": 'rgb(160,7,97)', "SOFC": 'lightseagreen', "ICE": 'lightskyblue'}
 
-    fig = make_subplots(rows=1, cols=2, shared_yaxes=True)
+    fig = make_subplots(rows=1, cols=2, shared_yaxes=True,
+                    #x_title='Your master x-title',
+                    y_title='LOEC [€/kW]',
+                    subplot_titles=('System Sensitivity',  'Environment Sensitivity'))
 
     for system in ["HiPowAR", "SOFC", "ICE"]:
 
@@ -485,8 +493,8 @@ def lcoesensitivity_plot_sensitivity2_update(input, state):
             for c in cond:
                 qs = qs + c + " & "
             qs = qs[:-3]
-            print(f"Query is:{qs}")
-            print(f"Query end")
+            #print(f"Query is:{qs}")
+            #print(f"Query end")
             tbred = tb.query(qs)
             rw = tbred.nsmallest(1, modpar)
             rw["modpar"] = modpar
@@ -565,7 +573,7 @@ def lcoesensitivity_plot_sensitivity2_update(input, state):
         fig.add_hline(y=result_df.loc["nominal", "LCOE"], line_color=colordict[system])
 
     fig.update_layout(
-        yaxis_title='LCOE [€/kW]',
+        #yaxis_title='LCOE [€/kW]',
         showlegend=False,
         boxmode='group'  # group together boxes of the different traces for each value of x
     )
@@ -632,7 +640,7 @@ def dev_button_procSelection(*args):
     # 4. Perform LCOE Calculation
     # 5. Save Systems in store locally
 
-    print('StartProc:', datetime.datetime.now())
+    #print('StartProc:', datetime.datetime.now())
     # 1. Collect all input variables from data fields
     # ------------------------------------------------------------------------------------------------------------------
     dict_combined = {}
@@ -697,12 +705,12 @@ def dev_button_procSelection(*args):
 
         # 4. Perform LCOE Calculation'
         # --------------------------------------------------------------------------------------------------------------
-        print('Start Prep:', datetime.datetime.now())
+        #print('Start Prep:', datetime.datetime.now())
         #system.prep_lcoe_input(mode="all")
         system.prep_lcoe_input(mode="all_minmax")
-        print('Start Calc:', datetime.datetime.now())
+        #print('Start Calc:', datetime.datetime.now())
         system.lcoe_table["LCOE"] = system.lcoe_table.apply(lambda row: systems[key].lcoe(row), axis=1)
-        print('End Calc:', datetime.datetime.now())
+        #print('End Calc:', datetime.datetime.now())
         system.lcoe_table = system.lcoe_table.apply(pd.to_numeric)
 
     # 5. Store data in dcc.storage object
@@ -731,4 +739,4 @@ def dev_button_debugprint(*args):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True, port=8888)
+    app.run_server(debug=True, port=8080)
