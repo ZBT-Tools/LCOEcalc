@@ -1,9 +1,15 @@
+""" LCOE Calculation Tool
+
+Description ....
+
+Code Structure:
+
+    - Imports
+    - Initialization prior to app start
+    - App styling and input functions for recurring use in layout
+
 """
 
-
-Planned Updates:
-- Preselected definitions
-"""
 import dash
 from dash import dcc
 import json
@@ -23,18 +29,30 @@ import datetime
 from itertools import product
 from plotly.subplots import make_subplots
 
-# Read input data
+# Initialization prior to app start
+# ----------------------------------------------------------------------------------------------------------------------
+
+# Read input data, presets from excel definition table
 df_input = pd.read_excel("input/Dash_LCOE_Configuration.xlsx",
                          sheet_name=["Systems", "Financial", "Fuel_NH3", "Fuel_NG"])
 
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
+# Force Plotly to clear local cache at each start
+# Issue occured during development: cached data used instead of updated code
 # https://community.plotly.com/t/how-to-easily-clear-cache/7069/2
 cache = Cache(app.server, config={"CACHE_TYPE": "simple"})
 cache.clear()
 
 
-def input_row_nom(component, ident, text, disabled=[False]):
+# App styling and input functions for recurring use
+# ----------------------------------------------------------------------------------------------------------------------
+
+# Parameter input row with single input "nominal"
+def input_row_nom(component, ident, text, disabled=None):
+    print("!!! DEPRECATED: input_row_nom")
+    if disabled is None:
+        disabled = [False]
     row = dbc.Row([
         dbc.Col(dbc.Label(text), width=6),
         dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}"}, type="text", size="sm",
@@ -42,7 +60,11 @@ def input_row_nom(component, ident, text, disabled=[False]):
     return row
 
 
-def input_row_nom_min_max(component, ident, text, disabled=[False, False, False]):
+# Parameter input row with three inputs "nominal","min","max"
+def input_row_nom_min_max(component, ident, text, disabled=None):
+    print("!!! DEPRECATED: input_row_nom_min_max")
+    if disabled is None:
+        disabled = [False, False, False]
     row = dbc.Row([
         dbc.Col(dbc.Label(text), width=6),
         dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}"}, type="number", size="sm",
@@ -56,22 +78,87 @@ def input_row_nom_min_max(component, ident, text, disabled=[False, False, False]
     return row
 
 
-def card_component_input(name: str, add_items: dict = {}):
+# Generalized input row
+def input_row_general(component: str, ident: str, text: str, n_inputfields: int,
+                      postfixes: list = None, widths: list = None,
+                      disabled: list = None) -> dbc.Row:
+    """
+
+
+
+    :param component:
+    :param ident:
+    :param text:
+    :param n_inputfields:
+    :param postfixes:
+    :param widths:
+    :param disabled:
+    :return:
+    """
+    # Default column/field widths
+    if widths is None:
+        if n_inputfields == 1:
+            widths = [6, 2]
+        elif n_inputfields == 2:
+            widths = [6, 2, 2]
+        elif n_inputfields == 3:
+            widths = [6, 2, 2, 2]
+        else:
+            equal_wd = int(12 / n_inputfields)
+            widths = [equal_wd] * n_inputfields
+
+    # Default postfixes
+    if postfixes is None:
+        if n_inputfields == 1:
+            postfixes = [""]  # Nominal value only, no postfix required
+        elif n_inputfields == 3:
+            postfixes = ["", "_min", "_max"]
+        else:
+            postfixes = [f"_{n}" for n in range(n_inputfields)]
+
+    if disabled is None:
+        disabled = [False] * n_inputfields
+
+    row_columns = [dbc.Col(dbc.Label(text), width=6)]
+
+    for w, d, p in zip(widths, disabled, postfixes):
+        col = dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}{p}"}, type="number", size="sm",
+                                disabled=d), width=w),
+        row_columns.append(col)
+
+    return dbc.Row(row_columns)
+
+
+# Generalized system definition card, containing multiple input rows
+def card_component_input(name: str, add_items: dict = None) -> dbc.Card:
+    """
+
+    :param name: Card Heading
+    :param add_items: Dict of additional input_row_general() input, structure
+                        {ident: [**kwargs]}
+    :return: dbc.Card
+    """
     card_body_rows = [
+        # Heading Row
         dbc.Row([
             dbc.Col(width=6),
             dbc.Col(dbc.Label("Nominal"), width=2),
             dbc.Col(dbc.Label("Min"), width=2),
             dbc.Col(dbc.Label("Max"), width=2)]),
-        input_row_nom(component=name, ident="size_kW", text="El. Output [kW]"),
-        input_row_nom_min_max(component=name, ident="capex_Eur_kW", text="Capex [€/kW]"),
-        input_row_nom_min_max(component=name, ident="opex_Eur_kWh", text="Opex (no Fuel) [€/kWh]"),
-        input_row_nom_min_max(component=name, ident="eta_perc", text="Efficiency [%]")]
+
+        # Standard system input rows
+        input_row_general(component=name, ident="size_kW", text="El. Output [kW]", n_inputfields=1),
+        input_row_general(component=name, ident="capex_Eur_kW", text="Capex [€/kW]", n_inputfields=3),
+        input_row_general(component=name, ident="opex_Eur_kWh", text="Opex (no Fuel) [€/kWh]", n_inputfields=3),
+        input_row_general(component=name, ident="eta_perc", text="Efficiency [%]", n_inputfields=3)]
+
+    # Add additional rows
     list_additional_rows = []
     for key, val in add_items.items():
-        rw = input_row_nom_min_max(component=name, ident=key, text=val)
-        list_additional_rows.append(rw)
-    card_body_rows.extend(list_additional_rows)
+        rw = input_row_general(component=name, ident=key, **val)
+        card_body_rows.append(rw)
+        #list_additional_rows.append(rw)
+    #card_body_rows.extend(list_additional_rows)
     card = dbc.Card([
         dbc.CardHeader(f"{name}"),
         dbc.CardBody([
@@ -79,6 +166,7 @@ def card_component_input(name: str, add_items: dict = {}):
     return card
 
 
+# General Card definition with input rows
 def card_generic_input(component: str, header: str, ident: list, text: list):
     # Create Input rows
     rows = [dbc.Col(width=6),
@@ -187,7 +275,7 @@ app.layout = dbc.Container([
                 ])], title="LCOE Plots"),
                 dbc.AccordionItem([
                     dbc.Row([
-                        #dbc.Col([dcc.Graph(id='lcoe-graph-sensitivity')]),
+                        # dbc.Col([dcc.Graph(id='lcoe-graph-sensitivity')]),
                         dbc.Col([dcc.Graph(id='lcoe-graph-sensitivity2')]),
                     ]),
 
@@ -231,7 +319,7 @@ def fill_inputfields(input, df):
                 return_list.append(
                     df.loc[(df.component == comp) & (df.parameter == par), input].item())
             except:
-                #print(f"No data found for {comp},{par}")
+                # print(f"No data found for {comp},{par}")
                 return_list.append(None)
         return_lists.append(return_list)
     return return_lists
@@ -320,7 +408,7 @@ def lcoeplot_update(input, state):
     # Read from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
-    #print("loaded")
+    # print("loaded")
 
     # Simple LCOE Comparison Plot
     y0 = systems["HiPowAR"].lcoe_table["LCOE"]
@@ -340,7 +428,7 @@ def lcoeplot_update(input, state):
 
     fig.update_layout(
         title="Levelized Cost of Electricity ",
-        #xaxis_title="",
+        # xaxis_title="",
         yaxis_title="LCOE [€/kW]")
     return fig
 
@@ -458,7 +546,7 @@ def lcoesensitivity_plot_sensitivity2_update(input, state):
     # Read from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
-    #print("loaded")
+    # print("loaded")
 
     # Influence of single parameter
     # ------------------------------------
@@ -470,9 +558,9 @@ def lcoesensitivity_plot_sensitivity2_update(input, state):
     colordict = {"HiPowAR": 'rgb(160,7,97)', "SOFC": 'lightseagreen', "ICE": 'lightskyblue'}
 
     fig = make_subplots(rows=1, cols=2, shared_yaxes=True,
-                    #x_title='Your master x-title',
-                    y_title='LOEC [€/kW]',
-                    subplot_titles=('System Sensitivity',  'Environment Sensitivity'))
+                        # x_title='Your master x-title',
+                        y_title='LOEC [€/kW]',
+                        subplot_titles=('System Sensitivity', 'Environment Sensitivity'))
 
     for system in ["HiPowAR", "SOFC", "ICE"]:
 
@@ -493,8 +581,8 @@ def lcoesensitivity_plot_sensitivity2_update(input, state):
             for c in cond:
                 qs = qs + c + " & "
             qs = qs[:-3]
-            #print(f"Query is:{qs}")
-            #print(f"Query end")
+            # print(f"Query is:{qs}")
+            # print(f"Query end")
             tbred = tb.query(qs)
             rw = tbred.nsmallest(1, modpar)
             rw["modpar"] = modpar
@@ -505,7 +593,7 @@ def lcoesensitivity_plot_sensitivity2_update(input, state):
 
         result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]
 
-        result_df.drop_duplicates(keep='first',inplace=True)
+        result_df.drop_duplicates(keep='first', inplace=True)
 
         # fig = go.Figure()
         for name, group in result_df.groupby('modpar'):
@@ -524,7 +612,7 @@ def lcoesensitivity_plot_sensitivity2_update(input, state):
             #    arrayminus=[abs(group["diff"].min())])
             fig.add_trace(trace, row=1, col=1)
 
-        fig.add_hline(y=result_df.loc["nominal", "LCOE"],line_color=colordict[system])
+        fig.add_hline(y=result_df.loc["nominal", "LCOE"], line_color=colordict[system])
 
         ###################################################################################################################
 
@@ -573,7 +661,7 @@ def lcoesensitivity_plot_sensitivity2_update(input, state):
         fig.add_hline(y=result_df.loc["nominal", "LCOE"], line_color=colordict[system])
 
     fig.update_layout(
-        #yaxis_title='LCOE [€/kW]',
+        # yaxis_title='LCOE [€/kW]',
         showlegend=False,
         boxmode='group'  # group together boxes of the different traces for each value of x
     )
@@ -640,7 +728,7 @@ def dev_button_procSelection(*args):
     # 4. Perform LCOE Calculation
     # 5. Save Systems in store locally
 
-    #print('StartProc:', datetime.datetime.now())
+    # print('StartProc:', datetime.datetime.now())
     # 1. Collect all input variables from data fields
     # ------------------------------------------------------------------------------------------------------------------
     dict_combined = {}
@@ -705,12 +793,12 @@ def dev_button_procSelection(*args):
 
         # 4. Perform LCOE Calculation'
         # --------------------------------------------------------------------------------------------------------------
-        #print('Start Prep:', datetime.datetime.now())
-        #system.prep_lcoe_input(mode="all")
+        # print('Start Prep:', datetime.datetime.now())
+        # system.prep_lcoe_input(mode="all")
         system.prep_lcoe_input(mode="all_minmax")
-        #print('Start Calc:', datetime.datetime.now())
+        # print('Start Calc:', datetime.datetime.now())
         system.lcoe_table["LCOE"] = system.lcoe_table.apply(lambda row: systems[key].lcoe(row), axis=1)
-        #print('End Calc:', datetime.datetime.now())
+        # print('End Calc:', datetime.datetime.now())
         system.lcoe_table = system.lcoe_table.apply(pd.to_numeric)
 
     # 5. Store data in dcc.storage object
