@@ -87,21 +87,37 @@ cache.clear()
 #     return row
 
 
-# Generalized input row
-def input_row_generic(component: str, ident: str, text: str, n_inputfields: int,
+def input_row_generic(component: str, par: str, title: str, n_inputfields: int = 3, fieldtype: list = None,
                       postfixes: list = None, widths: list = None,
                       disabled: list = None) -> dbc.Row:
     """
-    :param component:
-    :param ident:
-    :param text:
-    :param n_inputfields:
-    :param postfixes:
-    :param widths:
-    :param disabled:
+    Creates dbc row with title and input fields.
+    Example: Row title and 3 input fields -->    || Capex [%]   [  ]  [  ] [  ] ||
+
+    Structure: dbc.Row([dbc.Col(),dbc.Col(),...])
+
+    Input field identifier 'id' is dict of type:  id={'type': ...,'component', ..., 'par': ..."},
+        'type' defines type of field, e.g. 'input',...
+        'component' defines system, field is related to, e.g. 'SOFC'
+        'par' gives additional information, e.g. 'CAPEX_minimum'
+
+        Example: id = {'type': 'input', 'component': 'SOFC', 'par': 'APEX_min'}
+
+    :param fieldtype: str = list of field type for each input field, default handling below
+    :param component:       used as field identifier
+    :param par:             used as field identifier
+    :param title:           Row title
+    :param n_inputfields:   number of input fields
+    :param postfixes:       list of postfixes for each input field, default handling below
+    :param widths:          list of width for each input field, default handling below
+    :param disabled:        option to disable input field , default handling below
     :return:
     """
-    # Default column/field widths
+    # Default input field type
+    if fieldtype is None:
+        fieldtype = ['input'] * n_inputfields
+
+    # Default column/field widths based on n_inputfields
     if widths is None:
         if n_inputfields == 1:
             widths = [6, 2]
@@ -113,7 +129,7 @@ def input_row_generic(component: str, ident: str, text: str, n_inputfields: int,
             equal_wd = int(12 / n_inputfields)
             widths = [equal_wd] * n_inputfields
 
-    # Default postfixes
+    # Default postfixes (...as 'min', 'max',...)
     if postfixes is None:
         if n_inputfields == 1:
             postfixes = [""]  # Nominal value only, no postfix required
@@ -122,63 +138,33 @@ def input_row_generic(component: str, ident: str, text: str, n_inputfields: int,
         else:
             postfixes = [f"_{n}" for n in range(n_inputfields)]
 
+    # Default non-disabled input fields
     if disabled is None:
         disabled = [False] * n_inputfields
 
-    row_columns = [dbc.Col(dbc.Label(text), width=6)]
+    # First column: Label
+    row_columns = [dbc.Col(dbc.Label(title), width=widths[0])]
 
-    for w, d, p in zip(widths, disabled, postfixes):
-        col = dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}{p}"}, type="number", size="sm",
+    # Add input-Fields
+    for t, w, d, p in zip(fieldtype, widths[1:], disabled, postfixes):
+        col = dbc.Col(dbc.Input(id={'type': t, 'component': component, 'par': f"{par}{p}"}, type="number", size="sm",
                                 disabled=d), width=w),
         row_columns.append(col)
 
     return dbc.Row(row_columns)
 
 
-# Generalized system definition card, containing multiple input rows
-# def old_card_component_input(name: str, add_items: dict = None) -> dbc.Card:
-#     """
-#
-#     :param name: Card Heading
-#     :param add_items: Dict of additional input_row_general() input, structure
-#                         {ident: [**kwargs]}
-#     :return: dbc.Card
-#     """
-#     print("Deprecated")
-#     card_body_rows = [
-#         # Heading Row
-#         dbc.Row([
-#             dbc.Col(width=6),
-#             dbc.Col(dbc.Label("Nominal"), width=2),
-#             dbc.Col(dbc.Label("Min"), width=2),
-#             dbc.Col(dbc.Label("Max"), width=2)]),
-#
-#         # Standard system input rows
-#         input_row_general(component=name, ident="size_kW", text="El. Output [kW]", n_inputfields=1),
-#         input_row_general(component=name, ident="capex_Eur_kW", text="Capex [€/kW]", n_inputfields=3),
-#         input_row_general(component=name, ident="opex_Eur_kWh", text="Opex (no Fuel) [€/kWh]", n_inputfields=3),
-#         input_row_general(component=name, ident="eta_perc", text="Efficiency [%]", n_inputfields=3)]
-#
-#     # Add additional rows
-#     list_additional_rows = []
-#     for key, val in add_items.items():
-#         rw = input_row_general(component=name, ident=key, **val)
-#         card_body_rows.append(rw)
-#         # list_additional_rows.append(rw)
-#         # card_body_rows.extend(list_additional_rows)
-#     card = dbc.Card([
-#         dbc.CardHeader(f"{name}"),
-#         dbc.CardBody([
-#             html.Div(card_body_rows)])])
-#     return card
-
-
 # General Card definition with input rows
-def input_card_generic(component: str, header: str, rowinputs: dict) -> dbc.Card:
+def input_card_generic(component: str, header: str, rowinputs: list) -> dbc.Card:
     """
-    :param rowinputs:
-    :param component:
-    :param header:
+    Creates dbc.Card with header and input rows: "input_row_generic"s
+    :param rowinputs:   dict with input_row_generic input information,
+                            structure:  [inputrow_dict, inputrow_dict, inputrow_dict,...]
+                                        [{'par': ..., 'title': 'inputrow', 'n_inputfields': ...}, ...]
+                            example:    [{'par': 'size_kW', "title": "El. Output [kW]", "n_inputfields": 1}, ...],
+
+    :param component:   ... name for all rows of card
+    :param header:      card title
     :return:
     """
 
@@ -188,10 +174,12 @@ def input_card_generic(component: str, header: str, rowinputs: dict) -> dbc.Card
                      dbc.Col(dbc.Label("Min"), width=2),
                      dbc.Col(dbc.Label("Max"), width=2)
                      ])]
-    rws = [input_row_generic(component=component, ident=key, text=val["text"], n_inputfields=3) for key, val in
+    # Create rows
+    rws = [input_row_generic(component=component, par=rw.key, title=rw.title, n_inputfields=3) for rw in
            rowinputs]
     rows.extend(rws)
 
+    # Create Card
     card = dbc.Card([
         dbc.CardHeader(header),
         dbc.CardBody([
@@ -201,15 +189,23 @@ def input_card_generic(component: str, header: str, rowinputs: dict) -> dbc.Card
     return card
 
 
-def input_card_component(component: str, header: str, rowinputs: dict = None) -> dbc.Card:
-    # Component Specific input
-    extended_rowInput = {"size_kW": {"text": "El. Output [kW]", "n_inputfields": 1},
-                         "capex_Eur_kW": {"text": "Capex [€/kW]", "n_inputfields": 3},
-                         "opex_Eur_kWh": {"text": "Opex (no Fuel) [€/kWh]", "n_inputfields": 3},
-                         "eta_perc": {"text": "Efficiency [%]", "n_inputfields": 3}}
-    extended_rowInput.update(rowinputs)
+def input_card_component(component: str, header: str, add_rows: list = None) -> dbc.Card:
+    """
+    Creates dbc.Card with header and HiPowAR LCOE Workpackage specific Component input rows:
 
-    card = input_card_generic(component, header, extended_rowInput)
+    :param add_rows:    optional list of dicts for additional input_row_generic rows
+    :param component:   ... name for all rows of card
+    :param header:      card title
+    :return:
+    """
+
+    # Standard LCOE Component input
+    LCOE_rowInput = [{'par': "size_kW", "title": "El. Output [kW]", "n_inputfields": 1},
+                     {'par': "capex_Eur_kW", "title": "Capex [€/kW]", "n_inputfields": 3},
+                     {'par': "opex_Eur_kWh", "title": "Opex (no Fuel) [€/kWh]", "n_inputfields": 3},
+                     {'par': "eta_perc", "title": "Efficiency [%]", "n_inputfields": 3}]
+    LCOE_rowInput.extend(add_rows)
+    card = input_card_generic(component, header, LCOE_rowInput)
     return card
 
 
@@ -235,7 +231,7 @@ def generic_dropdown(id_name: str, label: str, elements: list) -> dbc.DropdownMe
 
 app.layout = dbc.Container([
     # Inputs and results are of small file size, therefore users local memory is used.
-    # Limit: It's generally safe to store [...] 5~10MB in most desktop-only applications.
+    # Limit: 'It's generally safe to store [...] 5~10MB in most desktop-only applications.'
     # https://dash.plotly.com/sharing-data-between-callbacks
     # https://dash.plotly.com/dash-core-components/store
     dcc.Store(id='storage', storage_type='memory'),
@@ -254,66 +250,59 @@ app.layout = dbc.Container([
             dbc.AccordionItem(title="Preset Selection", children=[
                 # Dropdown System Preset Selection
                 dbc.Row([
-                    dbc.Col(generic_dropdown(id="dd_preset", label="System Presets",
+                    dbc.Col(generic_dropdown(id_name="dd_preset", label="System Presets",
                                              elements=df_input["Systems"].columns[3:]), width=2),
                     dbc.Col(html.P(df_input["Systems"].columns[3], id="txt_Preset_Selection"), width=8)]),
                 # Dropdown Financial Preset Selection
                 dbc.Row([
-                    dbc.Col(generic_dropdown(id="dd_Financial", label="Financial Presets",
+                    dbc.Col(generic_dropdown(id_name="dd_Financial", label="Financial Presets",
                                              elements=df_input["Financial"].columns[3:]), width=2),
                     dbc.Col(html.P(df_input["Financial"].columns[3], id="txt_Financial_Selection"), width=8)]),
                 # Dropdown NH3 Fuel Cost Preset Selection
                 dbc.Row([
-                    dbc.Col(generic_dropdown(id="dd_NH3_fuel_cost", label="NH3 Cost Selector",
+                    dbc.Col(generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3 Cost Selector",
                                              elements=df_input["Fuel_NH3"].columns[3:]), width=2),
                     dbc.Col(html.P(df_input["Fuel_NH3"].columns[3], id="txt_NH3_fuel_cost_Preset_Selection"))]),
                 # Dropdown NG Fuel Cost Preset Selection
                 dbc.Row([
-                    dbc.Col(generic_dropdown(id="dd_NG_fuel_cost", label="NG Cost Selector",
+                    dbc.Col(generic_dropdown(id_name="dd_NG_fuel_cost", label="NG Cost Selector",
                                              elements=df_input["Fuel_NG"].columns[3:]), width=2),
                     dbc.Col(html.P(df_input["Fuel_NG"].columns[3], id="txt_NG_fuel_cost_Preset_Selection"))])
             ]),
-
             # Menu with input cards for each energy conversion system
             dbc.AccordionItem(title="Energy Conversion System Definition I", children=[
                 dbc.Row([
-                    dbc.Col(card_component_input("HiPowAR"), md=4),
-                    dbc.Col(card_component_input("SOFC", add_items={"stacklifetime_hr": "Stack Lifetime [hr]",
-                                                                    "stackexchangecost_percCapex": "Stack Exchange Cost [% Capex]"}),
-                            md=4),
-                    dbc.Col(card_component_input("ICE"), md=4),
+                    dbc.Col(input_card_component(component="HiPowAR", header="HiPowAR"), md=4),
+                    dbc.Col(input_card_component("SOFC", header="SOFC",
+                                                 add_rows=[{"par": "stacklifetime_hr", "title": "Stack Lifetime [hr]"},
+                                                           {"par": "stackexchangecost_percCapex",
+                                                            'title': "Stack Exchange Cost [% Capex]"}]), md=4),
+                    dbc.Col(input_card_component(component="ICE", header="Internal Combustion Eng."), md=4)
                 ], )
             ], ),
             dbc.AccordionItem([
                 dbc.Row([
-                    dbc.Col(card_generic_input(component="Financials", header="Financials",
-                                               ident=["discountrate_perc", "lifetime_yr", "operatinghoursyearly"],
-                                               text=["Discount Rate [%]",
-                                                     "Lifetime [y]",
-                                                     "Operating hours [hr/yr]"], ), md=4),
-                    dbc.Col(dbc.Card([
-                        dbc.CardHeader("Fuel Cost Settings"),
-                        dbc.CardBody([
-                            dbc.Row([
-                                dbc.Col(width=6),
-                                dbc.Col(dbc.Label("Nominal"), width=2),
-                                dbc.Col(dbc.Label("Min"), width=2),
-                                dbc.Col(dbc.Label("Max"), width=2)]),
+                    dbc.Col(input_card_generic(component="Financials", header="Financials",
+                                               rowinputs=[{'par': "discountrate_perc", 'title': "Discount Rate [%]"},
+                                                          {'par': "lifetime_yr", 'title': "Lifetime [y]"},
+                                                          {'par': "operatinghoursyearly",
+                                                           'title': "Operating hours [hr/yr]"}]
+                                               ), md=4),
+                    dbc.Col(dbc.Row([dbc.Col(
+                        input_card_generic(component='Fuel_NH3', header="NH3 Fuel Cost",
+                                           rowinputs=[{'par': 'cost_Eur_per_kWh', 'title': "NH3 cost [€/kWh]"},
+                                                      {'par': 'costIncrease_percent_per_year', 'title': "NH3 cost "
+                                                                                                        "increase ["
+                                                                                                        "%/yr]"}]),
+                        md=4),
 
-                            input_row_nom_min_max(component="Fuel_NH3", ident="cost_Eur_per_kWh",
-                                                  text="NH3 cost [€/kWh]"),
-                            input_row_nom_min_max(component="Fuel_NH3", ident="costIncrease_percent_per_year",
-                                                  text="NH3 cost increase [%/yr]"),
-                            html.Hr(),
-                            input_row_nom_min_max(component="Fuel_NG", ident="cost_Eur_per_kWh",
-                                                  text="NG cost [€/kWh]"),
-                            input_row_nom_min_max(component="Fuel_NG", ident="costIncrease_percent_per_year",
-                                                  text="NG cost increase [%/yr]")
-                        ])
-                    ]), md=4
-                    ),
+                        dbc.Col(
+                            input_card_generic(component='Fuel_NG', header="NG Fuel Cost",
+                                               rowinputs=[{'par': 'cost_Eur_per_kWh', 'title': "NG cost [€/kWh]"},
+                                                          {'par': 'costIncrease_percent_per_year',
+                                                           'title': "NG cost increase [%/yr]"}]), md=4)
+                    ]))])
 
-                ])
             ], title="General Settings", ),
             dbc.AccordionItem([dbc.Row([
                 dbc.Col([
@@ -335,7 +324,7 @@ app.layout = dbc.Container([
                          dbc.Col(dbc.Button("Process Input", id="bt_process_Input"), width=2),
                          dbc.Col(dbc.Button("Debug Print", id="bt_debugprint"), width=2)
                          ]),
-                dbc.Row([html.Pre("...", id="txt_out1")]),  # ToDo
+                dbc.Row([html.Pre("...", id="txt_out1")]),  # ToDo: Remove dummy elements
                 dbc.Row([html.Pre("...", id="txt_out2")]),
                 dbc.Row([html.Pre("...", id="txt_out3")]),
                 dbc.Row([html.Pre("...", id="txt_out4")]),
@@ -356,6 +345,14 @@ app.layout = dbc.Container([
 
 
 def fill_inputfields(input, df):
+
+    """
+
+    :param input:
+    :param df:
+    :return:
+    """
+
     return_lists = []
     for li in ctx.outputs_list:
         return_list = []
@@ -373,8 +370,6 @@ def fill_inputfields(input, df):
 
 
 # Initialization Callback
-
-
 @app.callback(
     Output("txt_Preset_Selection", "children"),
     [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_input["Systems"].columns[3:]))],
