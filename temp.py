@@ -1,3 +1,2 @@
-import plotly.express as px
-fig = px.scatter(px.data.iris(), x="sepal_length", y="sepal_width", color="species")
-fig.write_image("figure.png", engine="kaleido")
+import pandas as pd
+tab = pd.read_pickle("input4.pkl")

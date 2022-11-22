@@ -23,6 +23,7 @@ from dacite import from_dict
 import pickle
 import jsonpickle
 import datetime
+import numpy as np
 from itertools import product
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
@@ -33,7 +34,7 @@ from scripts.data_transfer import DC_FinancialInput, DC_SystemInput, DC_FuelInpu
 # ----------------------------------------------------------------------------------------------------------------------
 
 # Read input data, presets from excel definition table
-df_input = pd.read_excel("input/Dash_LCOE_Configuration.xlsx",
+df_input = pd.read_excel("input/Dash_LCOE_ConfigurationV2.xlsx",
                          sheet_name=["Systems", "Financial", "Fuel_NH3", "Fuel_NG"])
 
 # Load images (issue with standard image load, due to png?!)
@@ -56,43 +57,12 @@ cache.clear()
 
 # App styling and input functions for recurring use
 # ----------------------------------------------------------------------------------------------------------------------
-
-# Parameter input row with single input "nominal"
-# def input_row_nom(component, ident, text, disabled=None):
-#     print("!!! DEPRECATED: input_row_nom")
-#     if disabled is None:
-#         disabled = [False]
-#     row = dbc.Row([
-#         dbc.Col(dbc.Label(text), width=6),
-#         dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}"}, type="text", size="sm",
-#                           disabled=disabled[0]), width=2), ])
-#     return row
-
-
-# Parameter input row with three inputs "nominal","min","max"
-# def input_row_nom_min_max(component, ident, text, disabled=None):
-#     print("!!! DEPRECATED: input_row_nom_min_max")
-#     if disabled is None:
-#         disabled = [False, False, False]
-#     row = dbc.Row([
-#         dbc.Col(dbc.Label(text), width=6),
-#         dbc.Col(dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}"}, type="number", size="sm",
-#                           disabled=disabled[0]), width=2),
-#         dbc.Col(
-#             dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_min"}, type="number", disabled=disabled[1],
-#                       size="sm"), width=2),
-#         dbc.Col(
-#             dbc.Input(id={'type': f"input_{component}", 'index': f"{ident}_max"}, type="number", disabled=disabled[2],
-#                       size="sm"), width=2)])
-#     return row
-
-
 def input_row_generic(component: str, par: str, title: str, n_inputfields: int = 3, fieldtype: list = None,
                       postfixes: list = None, widths: list = None,
                       disabled: list = None) -> dbc.Row:
     """
     Creates dbc row with title and input fields.
-    Example: Row title and 3 input fields -->    || Capex [%]   [  ]  [  ] [  ] ||
+    Example: Row title and 3 input fields -->    || Capex [%]   [...]  [...] [...] ||
 
     Structure: dbc.Row([dbc.Col(),dbc.Col(),...])
 
@@ -149,6 +119,8 @@ def input_row_generic(component: str, par: str, title: str, n_inputfields: int =
     for t, w, d, p in zip(fieldtype, widths[1:], disabled, postfixes):
         col = dbc.Col(dbc.Input(id={'type': t, 'component': component, 'par': f"{par}{p}"}, type="number", size="sm",
                                 disabled=d), width=w),
+        if type(col) == tuple:
+            col = col[0]
         row_columns.append(col)
 
     return dbc.Row(row_columns)
@@ -175,17 +147,19 @@ def input_card_generic(component: str, header: str, rowinputs: list) -> dbc.Card
                      dbc.Col(dbc.Label("Max"), width=2)
                      ])]
     # Create rows
-    rws = [input_row_generic(component=component, par=rw.key, title=rw.title, n_inputfields=3) for rw in
+    rws = [input_row_generic(component=component, par=rw["par"], title=rw["title"], n_inputfields=3) for rw in
            rowinputs]
     rows.extend(rws)
 
     # Create Card
     card = dbc.Card([
         dbc.CardHeader(header),
-        dbc.CardBody([
-            html.Div([
-                dbc.Row(rows)
-            ])])])
+        dbc.CardBody(  # [
+            # html.Div(
+            rows
+            # )
+            # ]
+        )])
     return card
 
 
@@ -204,7 +178,9 @@ def input_card_component(component: str, header: str, add_rows: list = None) -> 
                      {'par': "capex_Eur_kW", "title": "Capex [€/kW]", "n_inputfields": 3},
                      {'par': "opex_Eur_kWh", "title": "Opex (no Fuel) [€/kWh]", "n_inputfields": 3},
                      {'par': "eta_perc", "title": "Efficiency [%]", "n_inputfields": 3}]
-    LCOE_rowInput.extend(add_rows)
+
+    if add_rows is not None:
+        LCOE_rowInput.extend(add_rows)
     card = input_card_generic(component, header, LCOE_rowInput)
     return card
 
@@ -288,21 +264,24 @@ app.layout = dbc.Container([
                                                           {'par': "operatinghoursyearly",
                                                            'title': "Operating hours [hr/yr]"}]
                                                ), md=4),
-                    dbc.Col(dbc.Row([dbc.Col(
-                        input_card_generic(component='Fuel_NH3', header="NH3 Fuel Cost",
-                                           rowinputs=[{'par': 'cost_Eur_per_kWh', 'title': "NH3 cost [€/kWh]"},
-                                                      {'par': 'costIncrease_percent_per_year', 'title': "NH3 cost "
-                                                                                                        "increase ["
-                                                                                                        "%/yr]"}]),
-                        md=4),
+                    dbc.Col([
+                        dbc.Row(dbc.Col(
+                            input_card_generic(component='Fuel_NH3', header="NH3 Fuel Cost",
+                                               rowinputs=[{'par': 'cost_Eur_per_kWh', 'title': "NH3 cost [€/kWh]"},
+                                                          {'par': 'costIncrease_percent_per_year', 'title': "NH3 cost "
+                                                                                                            "increase ["
+                                                                                                            "%/yr]"}]),
+                        )),
 
-                        dbc.Col(
+                        dbc.Row(dbc.Col(
                             input_card_generic(component='Fuel_NG', header="NG Fuel Cost",
                                                rowinputs=[{'par': 'cost_Eur_per_kWh', 'title': "NG cost [€/kWh]"},
                                                           {'par': 'costIncrease_percent_per_year',
-                                                           'title': "NG cost increase [%/yr]"}]), md=4)
-                    ]))])
+                                                           'title': "NG cost increase [%/yr]"}])
+                        ))
 
+                    ], md=4)
+                ])
             ], title="General Settings", ),
             dbc.AccordionItem([dbc.Row([
                 dbc.Col([
@@ -318,7 +297,8 @@ app.layout = dbc.Container([
             ], title="LCOE Sensitivity Study"),
             dbc.AccordionItem([], title="About"),
             dbc.AccordionItem([
-                dbc.Row([dbc.Col(dbc.Button("Initial Data Collect", id="bt_collect"), width=2),
+                dbc.Row([dbc.Col(dbc.Button("Fill Randomly", id="bt_randomfill"), width=2),
+                         dbc.Col(dbc.Button("Initial Data Collect", id="bt_collect"), width=2),
                          dbc.Col(dbc.Button("Update Data Collect", id="bt_update_collect"), width=2),
                          dbc.Col(dbc.Button("Load Input", id="bt_load_Input"), width=2),
                          dbc.Col(dbc.Button("Process Input", id="bt_process_Input"), width=2),
@@ -344,24 +324,29 @@ app.layout = dbc.Container([
 # --------------------------------------------------------------
 
 
-def fill_inputfields(input, df):
-
+def fill_inputfields(input_str: str, df: pd.DataFrame, output: list) -> list:
     """
+    Description:
 
-    :param input:
-    :param df:
-    :return:
+    Function for filling appropriate input fields based on dropdown menu selection.
+
+    output contains list-structure and names of callback output.
+    For each element inside ctx.outputs_list, appropriate data (component, par) from df will be returned.
     """
+    # For multiple outputs in callback, 'output' is list of lists [[output1],[output2],...]
+    # If only one output is handed over, it will be wrapped in additional list
+    if type(output[0]) is not list:
+        output = [output]
 
     return_lists = []
-    for li in ctx.outputs_list:
+    for li in output:
         return_list = []
         for el in li:
-            comp = el["id"]["type"][6:]
-            par = el["id"]["index"]
+            comp = el["id"]["component"]
+            par = el["id"]["par"]
             try:
                 return_list.append(
-                    df.loc[(df.component == comp) & (df.parameter == par), input].item())
+                    df.loc[(df.component == comp) & (df.par == par), input_str].item())
             except:
                 # print(f"No data found for {comp},{par}")
                 return_list.append(None)
@@ -369,84 +354,105 @@ def fill_inputfields(input, df):
     return return_lists
 
 
-# Initialization Callback
+#
+# @app.callback(
+#     Output("txt_Preset_Selection", "children"),
+#     [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_input["Systems"].columns[3:]))],
+#     prevent_initial_call=True)
+# def cbf_quickstart_select_preset_I(*inputs):
+#     """
+#
+#     :param inputs:
+#     :return:
+#     """
+#     selection_id = df_input["Systems"].columns[3:][int(ctx.triggered_id[-1])]
+#     return f"{selection_id}"
+#
+#
+# @app.callback(
+#     Output({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
+#     Output({'type': 'input_SOFC', 'index': ALL}, 'value'),
+#     Output({'type': 'input_ICE', 'index': ALL}, 'value'),
+#     Input("txt_Preset_Selection", "children"),
+#     # prevent_initial_call=True
+# )
+# def cbf_quickstart_select_preset_II(input):
+#     return_lists = fill_inputfields(input, df_input["Systems"])
+#     return return_lists
+
 @app.callback(
     Output("txt_Preset_Selection", "children"),
+    Output({'type': 'input', 'component': 'HiPowAR', 'par': ALL}, 'value'),
+    Output({'type': 'input', 'component': 'SOFC', 'par': ALL}, 'value'),
+    Output({'type': 'input', 'component': 'ICE', 'par': ALL}, 'value'),
     [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_input["Systems"].columns[3:]))],
     prevent_initial_call=True)
-def quickstart_select_preset_I(*inputs):
-    selection_id = df_input["Systems"].columns[3:][int(ctx.triggered_id[-1])]
-    return f"{selection_id}"
+def cbf_quickstart_select_preset(*inp):
+    """
+    Each element of dropdown list  "dd_...." triggers callback.
+    Output:
+    - Output[0]:   Text next to dropdown menu
+    - Output[1:3]: Data as defined in definition table
+    """
+    selection_title = df_input["Systems"].columns[3:][int(ctx.triggered_id[-1])]
+    return_lists = fill_inputfields(selection_title, df=df_input["Systems"], output=ctx.outputs_list[1:4])
 
+    output = [selection_title]
+    output.extend(return_lists)
 
-@app.callback(
-    Output({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
-    Output({'type': 'input_SOFC', 'index': ALL}, 'value'),
-    Output({'type': 'input_ICE', 'index': ALL}, 'value'),
-    Input("txt_Preset_Selection", "children"),
-    # prevent_initial_call=True
-)
-def quickstart_select_preset_II(input):
-    return_lists = fill_inputfields(input, df_input["Systems"])
-    return return_lists
+    return output
 
 
 @app.callback(
     Output("txt_Financial_Selection", "children"),
+    Output({'type': 'input', 'component': 'Financials', 'par': ALL}, 'value'),
     [Input(f"dd_Financial_{n}", "n_clicks") for n in range(len(df_input["Financial"].columns[3:]))],
     prevent_initial_call=True)
-def quickstart_select_financial_I(*inputs):
-    selection_id = df_input["Financial"].columns[3:][int(ctx.triggered_id[-1])]
-    return f"{selection_id}"
+def cbf_quickstart_select_financial(*inputs):
+    selection_title = df_input["Financial"].columns[3:][int(ctx.triggered_id[-1])]
+    return_lists = fill_inputfields(selection_title, df=df_input["Financial"], output=ctx.outputs_list[1])
 
+    output = [selection_title]
+    output.extend(return_lists)
 
-@app.callback(
-    [Output({'type': 'input_Financials', 'index': ALL}, 'value')],
-    Input("txt_Financial_Selection", "children"))
-def quickstart_select_financial_II(input):
-    return_lists = fill_inputfields(input, df_input["Financial"])
-    return return_lists
+    return output
 
 
 @app.callback(
     Output("txt_NH3_fuel_cost_Preset_Selection", "children"),
+    Output({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
     [Input(f"dd_NH3_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NH3"].columns[3:]))],
     prevent_initial_call=True)
-def quickstart_select_NH3fuel_preset_I(*input):
-    selection_id = df_input["Fuel_NH3"].columns[3:][int(ctx.triggered_id[-1])]
-    return f"{selection_id}"
+def cbf_quickstart_select_NH3fuel_preset(*inputs):
+    selection_title = df_input["Fuel_NH3"].columns[3:][int(ctx.triggered_id[-1])]
+    return_lists = fill_inputfields(selection_title, df=df_input["Fuel_NH3"], output=ctx.outputs_list[1])
 
+    output = [selection_title]
+    output.extend(return_lists)
 
-@app.callback(
-    [Output({'type': 'input_Fuel_NH3', 'index': ALL}, 'value')],
-    Input("txt_NH3_fuel_cost_Preset_Selection", "children"), )
-def quickstart_select_NH3fuel_preset_II(input):
-    return_lists = fill_inputfields(input, df_input["Fuel_NH3"])
-    return return_lists
+    return output
 
 
 @app.callback(
     Output("txt_NG_fuel_cost_Preset_Selection", "children"),
+    Output({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
     [Input(f"dd_NG_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NG"].columns[3:]))],
     prevent_initial_call=True)
-def quickstart_select_NGfuel_preset_I(*input):
-    selection_id = df_input["Fuel_NG"].columns[3:][int(ctx.triggered_id[-1])]
-    return f"{selection_id}"
+def cbf_quickstart_select_NGfuel_preset(*inputs):
+    selection_title = df_input["Fuel_NG"].columns[3:][int(ctx.triggered_id[-1])]
+    return_lists = fill_inputfields(selection_title, df=df_input["Fuel_NG"], output=ctx.outputs_list[1])
 
+    output = [selection_title]
+    output.extend(return_lists)
 
-@app.callback(
-    [Output({'type': 'input_Fuel_NG', 'index': ALL}, 'value')],
-    Input("txt_NG_fuel_cost_Preset_Selection", "children"), )
-def quickstart_select_NGfuel_preset_II(input):
-    return_lists = fill_inputfields(input, df_input["Fuel_NG"])
-    return return_lists
+    return output
 
 
 @app.callback(
     Output('lcoe-graph', 'figure'), Input("txt_out6", "children"),
     State('storage', 'data'),
     prevent_initial_call=True)
-def lcoeplot_update(input, state):
+def cbf_lcoeplot_update(input, state):
     # Read from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
@@ -584,7 +590,7 @@ def lcoeplot_update(input, state):
     Output('lcoe-graph-sensitivity2', 'figure'), Input("txt_out6", "children"),
     State('storage', 'data'),
     prevent_initial_call=True)
-def lcoesensitivity_plot_sensitivity2_update(input, state):
+def cbf_lcoesensitivity_plot_sensitivity2_update(input, state):
     # Read from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
@@ -711,28 +717,45 @@ def lcoesensitivity_plot_sensitivity2_update(input, state):
     return fig
 
 
+# @app.callback(
+#     Output({'type': 'input', 'component': ALL, 'par': ALL}, 'value'),
+#     Input("bt_randomfill", "n_clicks"),
+#     prevent_initial_call=True)
+# def cbf_dev_button_randomInput(*args):
+#     """
+#     Fill input fields with random input
+#     """
+#     return_list = []
+#     for le in ctx.outputs_list:
+#         return_list.append(np.random.randint(1, 100))
+#     return return_list
+
+
 @app.callback(
-    Output("txt_out1", "children"), Input("bt_collect", "n_clicks"),
-    State({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
-    State({'type': 'input_SOFC', 'index': ALL}, 'value'),
-    State({'type': 'input_ICE', 'index': ALL}, 'value'),
-    State({'type': 'input_Financials', 'index': ALL}, 'value'),
-    State({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
-    State({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
+    Output("txt_out1", "children"),
+    Input("bt_collect", "n_clicks"),
+    State({'type': 'input', 'component': ALL, 'par': ALL}, 'value'),
     prevent_initial_call=True)
-def dev_button_initialCollectInput(*args):
+def cbf_dev_button_initialCollectInput(*args):
     """
+    Creates new dataframe / excel table with all inputfields of types defined in callback above.
+    Create DataFrame with all input fields and fill with available input
     :param args:
-    :return: Creates new dataframe / excel table with all inputfields of types defined in callback above.
+    :return:
     """
-    df = pd.DataFrame(index=ctx.states.keys(), columns=["component", "parameter"])
-    for key, val in ctx.states.items():
-        comp = key.split('"')[7][6:]
-        par = key.split('"')[3]
-        df.loc[key, "parameter"] = par
-        df.loc[key, "component"] = comp
-        df.loc[key, 0] = val
+
+    df = pd.DataFrame(columns=["component", "par"])
+    for dct in ctx.states_list[0]:
+        data = {'component': dct["id"]["component"], 'par': dct["id"]["par"]}
+        try:
+            data.update({0: dct["value"]})
+        except KeyError:
+            data.update({0: None})
+        new_row = pd.Series(data)
+        df = pd.concat([df, new_row.to_frame().T], ignore_index=True)
+
     df.to_pickle("input4.pkl")
+    df.to_excel("input4.xlsx")
     return "ok"
 
 
@@ -745,7 +768,7 @@ def dev_button_initialCollectInput(*args):
     State({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
     State({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
     prevent_initial_call=True)
-def dev_button_updateCollectInput(input, *args):
+def cbf_dev_button_updateCollectInput(input, *args):
     df = pd.read_pickle("input4.pkl")
     for key, val in ctx.states.items():
         df.loc[key, input] = val
@@ -763,7 +786,7 @@ def dev_button_updateCollectInput(input, *args):
     State({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
     State({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
     prevent_initial_call=True)
-def dev_button_procSelection(*args):
+def cbf_dev_button_procSelection(*args):
     # 1. Collect all input variables from data fields
     # 2. Save data in DataClasses
     # 3. Initialize System objects
@@ -863,7 +886,7 @@ def dev_button_procSelection(*args):
     State({'type': 'input', 'index': ALL}, 'value'),
     State({'type': 'fuel_NH3_input', 'index': ALL}, 'value'),
     State({'type': 'fuel_NG_input', 'index': ALL}, 'value'), prevent_initial_call=True)
-def dev_button_debugprint(*args):
+def cbf_dev_button_debugprint(*args):
     for el in ctx.states_list[0]:
         print(el)
 
