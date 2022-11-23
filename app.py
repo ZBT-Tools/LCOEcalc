@@ -347,38 +347,12 @@ def fill_inputfields(input_str: str, df: pd.DataFrame, output: list) -> list:
             try:
                 return_list.append(
                     df.loc[(df.component == comp) & (df.par == par), input_str].item())
-            except:
+            except AttributeError:
                 # print(f"No data found for {comp},{par}")
                 return_list.append(None)
         return_lists.append(return_list)
     return return_lists
 
-
-#
-# @app.callback(
-#     Output("txt_Preset_Selection", "children"),
-#     [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_input["Systems"].columns[3:]))],
-#     prevent_initial_call=True)
-# def cbf_quickstart_select_preset_I(*inputs):
-#     """
-#
-#     :param inputs:
-#     :return:
-#     """
-#     selection_id = df_input["Systems"].columns[3:][int(ctx.triggered_id[-1])]
-#     return f"{selection_id}"
-#
-#
-# @app.callback(
-#     Output({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
-#     Output({'type': 'input_SOFC', 'index': ALL}, 'value'),
-#     Output({'type': 'input_ICE', 'index': ALL}, 'value'),
-#     Input("txt_Preset_Selection", "children"),
-#     # prevent_initial_call=True
-# )
-# def cbf_quickstart_select_preset_II(input):
-#     return_lists = fill_inputfields(input, df_input["Systems"])
-#     return return_lists
 
 @app.callback(
     Output("txt_Preset_Selection", "children"),
@@ -392,10 +366,10 @@ def cbf_quickstart_select_preset(*inp):
     Each element of dropdown list  "dd_...." triggers callback.
     Output:
     - Output[0]:   Text next to dropdown menu
-    - Output[1:3]: Data as defined in definition table
+    - Output[1:]: Data as defined in definition table
     """
     selection_title = df_input["Systems"].columns[3:][int(ctx.triggered_id[-1])]
-    return_lists = fill_inputfields(selection_title, df=df_input["Systems"], output=ctx.outputs_list[1:4])
+    return_lists = fill_inputfields(selection_title, df=df_input["Systems"], output=ctx.outputs_list[1:])
 
     output = [selection_title]
     output.extend(return_lists)
@@ -420,7 +394,7 @@ def cbf_quickstart_select_financial(*inputs):
 
 @app.callback(
     Output("txt_NH3_fuel_cost_Preset_Selection", "children"),
-    Output({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
+    Output({'type': 'input', 'component': 'Fuel_NH3', 'par': ALL}, 'value'),
     [Input(f"dd_NH3_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NH3"].columns[3:]))],
     prevent_initial_call=True)
 def cbf_quickstart_select_NH3fuel_preset(*inputs):
@@ -435,7 +409,7 @@ def cbf_quickstart_select_NH3fuel_preset(*inputs):
 
 @app.callback(
     Output("txt_NG_fuel_cost_Preset_Selection", "children"),
-    Output({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
+    Output({'type': 'input', 'component': 'Fuel_NG', 'par': ALL}, 'value'),
     [Input(f"dd_NG_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NG"].columns[3:]))],
     prevent_initial_call=True)
 def cbf_quickstart_select_NGfuel_preset(*inputs):
@@ -452,11 +426,10 @@ def cbf_quickstart_select_NGfuel_preset(*inputs):
     Output('lcoe-graph', 'figure'), Input("txt_out6", "children"),
     State('storage', 'data'),
     prevent_initial_call=True)
-def cbf_lcoeplot_update(input, state):
+def cbf_lcoeplot_update(inp, state):
     # Read from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
-    # print("loaded")
 
     # Simple LCOE Comparison Plot
     y0 = systems["HiPowAR"].lcoe_table["LCOE"]
@@ -481,116 +454,11 @@ def cbf_lcoeplot_update(input, state):
     return fig
 
 
-# @app.callback(
-#     Output('lcoe-graph-sensitivity', 'figure'), Input("txt_out6", "children"),
-#     State('storage', 'data'),
-#     prevent_initial_call=True)
-# def lcoesensitivity_plot_sensitivity_update(input, state):
-#     # Read from storage
-#     systems = jsonpickle.loads(state)
-#     systems = pickle.loads(systems)
-#     print("loaded")
-#
-#     # Influence of single parameter
-#     # ------------------------------------
-#     # (Search in table)
-#     # For each parameter keep all other parameter at nominal value and modify
-#     # single parameter
-#     # Add "modpar" column to lcoe Table, so that groupby can be used for plots
-#     # #ToDO: Here or in lcoe.py?
-#
-#     fig = make_subplots(rows=1, cols=2, shared_yaxes=True)
-#
-#     tb = systems["HiPowAR"].lcoe_table.copy()
-#     # result_df = pd.DataFrame(columns=["modpar"])
-#
-#     variation_pars = tb.columns.drop(["p_size_kW", "LCOE"])
-#     variation_pars = variation_pars.drop([x for x in variation_pars if x[0] != "p"])
-#
-#     result_df = pd.DataFrame(columns=tb.columns)
-#     result_df.loc["nominal"] = tb.loc["nominal"]
-#
-#     for modpar in variation_pars:
-#         # Create query string:
-#         qs = ""
-#         cond = [f"{parm} == {result_df.loc['nominal', parm]}" for parm in variation_pars.drop(modpar)]
-#         for c in cond:
-#             qs = qs + c + " & "
-#         qs = qs[:-3]
-#         tbred = tb.query(qs)
-#         rw = tbred.nsmallest(1, modpar)
-#         rw["modpar"] = modpar
-#         result_df = pd.concat([result_df, rw])
-#         rw = tbred.nlargest(1, modpar)
-#         rw["modpar"] = modpar
-#         result_df = pd.concat([result_df, rw])
-#
-#     result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]
-#
-#     # fig = go.Figure()
-#     for name, group in result_df.groupby('modpar'):
-#         trace = go.Scatter()
-#         trace.name = name
-#         trace.x = [name]
-#         trace.y = [result_df.loc["nominal", "LCOE"]]
-#         trace.error_y = dict(
-#             type='data',
-#             symmetric=False,
-#             array=[group["diff"].max()],
-#             arrayminus=[abs(group["diff"].min())])
-#         fig.add_trace(trace, row=1, col=1)
-#
-#     fig.add_hline(y=result_df.loc["nominal", "LCOE"])
-#
-#     ###################################################################################################################
-#
-#     tb = systems["HiPowAR"].lcoe_table.copy()
-#     # result_df = pd.DataFrame(columns=["modpar"])
-#
-#     variation_pars = tb.columns.drop(["p_size_kW", "LCOE"])
-#     variation_pars = variation_pars.drop([x for x in variation_pars if x[0] == "p"])
-#
-#     result_df = pd.DataFrame(columns=tb.columns)
-#     result_df.loc["nominal"] = tb.loc["nominal"]
-#
-#     for modpar in variation_pars:
-#         # Create query string:
-#         qs = ""
-#         cond = [f"{parm} == {result_df.loc['nominal', parm]}" for parm in variation_pars.drop(modpar)]
-#         for c in cond:
-#             qs = qs + c + " & "
-#         qs = qs[:-3]
-#         tbred = tb.query(qs)
-#         rw = tbred.nsmallest(1, modpar)
-#         rw["modpar"] = modpar
-#         result_df = pd.concat([result_df, rw])
-#         rw = tbred.nlargest(1, modpar)
-#         rw["modpar"] = modpar
-#         result_df = pd.concat([result_df, rw])
-#
-#     result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]
-#
-#     # fig = go.Figure()
-#     for name, group in result_df.groupby('modpar'):
-#         trace = go.Scatter()
-#         trace.name = name
-#         trace.x = [name]
-#         trace.y = [result_df.loc["nominal", "LCOE"]]
-#         trace.error_y = dict(
-#             type='data',
-#             symmetric=False,
-#             array=[group["diff"].max()],
-#             arrayminus=[abs(group["diff"].min())])
-#         fig.add_trace(trace, row=1, col=2, )
-#
-#     return fig
-
-
 @app.callback(
     Output('lcoe-graph-sensitivity2', 'figure'), Input("txt_out6", "children"),
     State('storage', 'data'),
     prevent_initial_call=True)
-def cbf_lcoesensitivity_plot_sensitivity2_update(input, state):
+def cbf_lcoesensitivity_plot_sensitivity2_update(inp, state):
     # Read from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
@@ -662,7 +530,7 @@ def cbf_lcoesensitivity_plot_sensitivity2_update(input, state):
 
         fig.add_hline(y=result_df.loc["nominal", "LCOE"], line_color=colordict[system])
 
-        ###################################################################################################################
+        ###################################################################################################
 
         tb = systems[system].lcoe_table.copy()
         # result_df = pd.DataFrame(columns=["modpar"])
@@ -717,20 +585,6 @@ def cbf_lcoesensitivity_plot_sensitivity2_update(input, state):
     return fig
 
 
-# @app.callback(
-#     Output({'type': 'input', 'component': ALL, 'par': ALL}, 'value'),
-#     Input("bt_randomfill", "n_clicks"),
-#     prevent_initial_call=True)
-# def cbf_dev_button_randomInput(*args):
-#     """
-#     Fill input fields with random input
-#     """
-#     return_list = []
-#     for le in ctx.outputs_list:
-#         return_list.append(np.random.randint(1, 100))
-#     return return_list
-
-
 @app.callback(
     Output("txt_out1", "children"),
     Input("bt_collect", "n_clicks"),
@@ -740,10 +594,7 @@ def cbf_dev_button_initialCollectInput(*args):
     """
     Creates new dataframe / excel table with all inputfields of types defined in callback above.
     Create DataFrame with all input fields and fill with available input
-    :param args:
-    :return:
     """
-
     df = pd.DataFrame(columns=["component", "par"])
     for dct in ctx.states_list[0]:
         data = {'component': dct["id"]["component"], 'par': dct["id"]["par"]}
@@ -756,6 +607,7 @@ def cbf_dev_button_initialCollectInput(*args):
 
     df.to_pickle("input4.pkl")
     df.to_excel("input4.xlsx")
+
     return "ok"
 
 
@@ -768,10 +620,15 @@ def cbf_dev_button_initialCollectInput(*args):
     State({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
     State({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
     prevent_initial_call=True)
-def cbf_dev_button_updateCollectInput(input, *args):
+def cbf_dev_button_updateCollectInput(inp, *args):
+    """
+    Intention: Save new parameterset to table.
+
+    ToDo: Implement
+    """
     df = pd.read_pickle("input4.pkl")
     for key, val in ctx.states.items():
-        df.loc[key, input] = val
+        df.loc[key, inp] = val
     df.to_pickle("input4_upd.pkl")
     df.to_excel("input4_upd.xlsx")
     return "ok"
