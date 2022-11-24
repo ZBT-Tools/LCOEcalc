@@ -32,6 +32,7 @@ from scripts.data_transfer import DC_FinancialInput, DC_SystemInput, DC_FuelInpu
 
 # Initialization prior to app start
 # ----------------------------------------------------------------------------------------------------------------------
+# Storage is defined as first element inside app layout!
 
 # Read input data, presets from excel definition table
 df_input = pd.read_excel("input/Dash_LCOE_ConfigurationV2.xlsx",
@@ -58,7 +59,7 @@ cache.clear()
 # App styling and input functions for recurring use
 # ----------------------------------------------------------------------------------------------------------------------
 def input_row_generic(component: str, par: str, title: str, n_inputfields: int = 3, fieldtype: list = None,
-                      postfixes: list = None, widths: list = None,
+                      parInfo: list = None, widths: list = None,
                       disabled: list = None) -> dbc.Row:
     """
     Creates dbc row with title and input fields.
@@ -66,19 +67,21 @@ def input_row_generic(component: str, par: str, title: str, n_inputfields: int =
 
     Structure: dbc.Row([dbc.Col(),dbc.Col(),...])
 
-    Input field identifier 'id' is dict of type:  id={'type': ...,'component', ..., 'par': ..."},
+    Input field identifier 'id' is dict of type:
+        id={'type': ...,'component', ..., 'par': ..., },
         'type' defines type of field, e.g. 'input',...
         'component' defines system, field is related to, e.g. 'SOFC'
-        'par' gives additional information, e.g. 'CAPEX_minimum'
+        'par' defines system parameter, e.g. 'OPEX_€_per_kW'
+        'parInfo' defines additional information, e.g. 'nominal', ',min', 'max'
 
-        Example: id = {'type': 'input', 'component': 'SOFC', 'par': 'APEX_min'}
+        Example: id = {'type': 'input', 'component': 'SOFC', 'par': 'CAPEX_€_per_kW', 'parInfo':'min}
 
     :param fieldtype: str = list of field type for each input field, default handling below
     :param component:       used as field identifier
     :param par:             used as field identifier
     :param title:           Row title
     :param n_inputfields:   number of input fields
-    :param postfixes:       list of postfixes for each input field, default handling below
+    :param parInfo:         list of field identifiers, default handling below
     :param widths:          list of width for each input field, default handling below
     :param disabled:        option to disable input field , default handling below
     :return:
@@ -100,13 +103,13 @@ def input_row_generic(component: str, par: str, title: str, n_inputfields: int =
             widths = [equal_wd] * n_inputfields
 
     # Default postfixes (...as 'min', 'max',...)
-    if postfixes is None:
+    if parInfo is None:
         if n_inputfields == 1:
-            postfixes = [""]  # Nominal value only, no postfix required
+            parInfo = ["nominal"]  # Nominal value only, no postfix required
         elif n_inputfields == 3:
-            postfixes = ["", "_min", "_max"]
+            parInfo = ["nominal", "min", "max"]
         else:
-            postfixes = [f"_{n}" for n in range(n_inputfields)]
+            parInfo = [f"_{n}" for n in range(n_inputfields)]
 
     # Default non-disabled input fields
     if disabled is None:
@@ -116,8 +119,11 @@ def input_row_generic(component: str, par: str, title: str, n_inputfields: int =
     row_columns = [dbc.Col(dbc.Label(title), width=widths[0])]
 
     # Add input-Fields
-    for t, w, d, p in zip(fieldtype, widths[1:], disabled, postfixes):
-        col = dbc.Col(dbc.Input(id={'type': t, 'component': component, 'par': f"{par}{p}"}, type="number", size="sm",
+    for t, w, d, p in zip(fieldtype, widths[1:], disabled, parInfo):
+        col = dbc.Col(dbc.Input(id={'type': t,
+                                    'component': component,
+                                    'par': par,
+                                    'parInfo': p}, type="number", size="sm",
                                 disabled=d), width=w),
         if type(col) == tuple:
             col = col[0]
@@ -227,23 +233,23 @@ app.layout = dbc.Container([
                 # Dropdown System Preset Selection
                 dbc.Row([
                     dbc.Col(generic_dropdown(id_name="dd_preset", label="System Presets",
-                                             elements=df_input["Systems"].columns[3:]), width=2),
-                    dbc.Col(html.P(df_input["Systems"].columns[3], id="txt_Preset_Selection"), width=8)]),
+                                             elements=df_input["Systems"].columns[4:]), width=2),
+                    dbc.Col(html.P(df_input["Systems"].columns[4], id="txt_Preset_Selection"), width=8)]),
                 # Dropdown Financial Preset Selection
                 dbc.Row([
                     dbc.Col(generic_dropdown(id_name="dd_Financial", label="Financial Presets",
-                                             elements=df_input["Financial"].columns[3:]), width=2),
-                    dbc.Col(html.P(df_input["Financial"].columns[3], id="txt_Financial_Selection"), width=8)]),
+                                             elements=df_input["Financial"].columns[4:]), width=2),
+                    dbc.Col(html.P(df_input["Financial"].columns[4], id="txt_Financial_Selection"), width=8)]),
                 # Dropdown NH3 Fuel Cost Preset Selection
                 dbc.Row([
                     dbc.Col(generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3 Cost Selector",
-                                             elements=df_input["Fuel_NH3"].columns[3:]), width=2),
-                    dbc.Col(html.P(df_input["Fuel_NH3"].columns[3], id="txt_NH3_fuel_cost_Preset_Selection"))]),
+                                             elements=df_input["Fuel_NH3"].columns[4:]), width=2),
+                    dbc.Col(html.P(df_input["Fuel_NH3"].columns[4], id="txt_NH3_fuel_cost_Preset_Selection"))]),
                 # Dropdown NG Fuel Cost Preset Selection
                 dbc.Row([
                     dbc.Col(generic_dropdown(id_name="dd_NG_fuel_cost", label="NG Cost Selector",
-                                             elements=df_input["Fuel_NG"].columns[3:]), width=2),
-                    dbc.Col(html.P(df_input["Fuel_NG"].columns[3], id="txt_NG_fuel_cost_Preset_Selection"))])
+                                             elements=df_input["Fuel_NG"].columns[4:]), width=2),
+                    dbc.Col(html.P(df_input["Fuel_NG"].columns[4], id="txt_NG_fuel_cost_Preset_Selection"))])
             ]),
             # Menu with input cards for each energy conversion system
             dbc.AccordionItem(title="Energy Conversion System Definition I", children=[
@@ -328,7 +334,7 @@ def fill_inputfields(input_str: str, df: pd.DataFrame, output: list) -> list:
     """
     Description:
 
-    Function for filling appropriate input fields based on dropdown menu selection.
+    Function for filling input fields based on dropdown menu selection.
 
     output contains list-structure and names of callback output.
     For each element inside ctx.outputs_list, appropriate data (component, par) from df will be returned.
@@ -344,11 +350,13 @@ def fill_inputfields(input_str: str, df: pd.DataFrame, output: list) -> list:
         for el in li:
             comp = el["id"]["component"]
             par = el["id"]["par"]
+            parInfo = el["id"]["parInfo"]
             try:
                 return_list.append(
-                    df.loc[(df.component == comp) & (df.par == par), input_str].item())
+                    df.loc[(df.component == comp) & (df.par == par) & (df.parInfo == parInfo), input_str].item())
             except AttributeError:
-                # print(f"No data found for {comp},{par}")
+                return_list.append(None)
+            except ValueError:
                 return_list.append(None)
         return_lists.append(return_list)
     return return_lists
@@ -356,10 +364,10 @@ def fill_inputfields(input_str: str, df: pd.DataFrame, output: list) -> list:
 
 @app.callback(
     Output("txt_Preset_Selection", "children"),
-    Output({'type': 'input', 'component': 'HiPowAR', 'par': ALL}, 'value'),
-    Output({'type': 'input', 'component': 'SOFC', 'par': ALL}, 'value'),
-    Output({'type': 'input', 'component': 'ICE', 'par': ALL}, 'value'),
-    [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_input["Systems"].columns[3:]))],
+    Output({'type': 'input', 'component': 'HiPowAR', 'par': ALL, 'parInfo': ALL}, 'value'),
+    Output({'type': 'input', 'component': 'SOFC', 'par': ALL, 'parInfo': ALL}, 'value'),
+    Output({'type': 'input', 'component': 'ICE', 'par': ALL, 'parInfo': ALL}, 'value'),
+    [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_input["Systems"].columns[4:]))],
     prevent_initial_call=True)
 def cbf_quickstart_select_preset(*inp):
     """
@@ -368,7 +376,7 @@ def cbf_quickstart_select_preset(*inp):
     - Output[0]:   Text next to dropdown menu
     - Output[1:]: Data as defined in definition table
     """
-    selection_title = df_input["Systems"].columns[3:][int(ctx.triggered_id[-1])]
+    selection_title = df_input["Systems"].columns[4:][int(ctx.triggered_id[-1])]
     return_lists = fill_inputfields(selection_title, df=df_input["Systems"], output=ctx.outputs_list[1:])
 
     output = [selection_title]
@@ -379,11 +387,11 @@ def cbf_quickstart_select_preset(*inp):
 
 @app.callback(
     Output("txt_Financial_Selection", "children"),
-    Output({'type': 'input', 'component': 'Financials', 'par': ALL}, 'value'),
-    [Input(f"dd_Financial_{n}", "n_clicks") for n in range(len(df_input["Financial"].columns[3:]))],
+    Output({'type': 'input', 'component': 'Financials', 'par': ALL, 'parInfo': ALL}, 'value'),
+    [Input(f"dd_Financial_{n}", "n_clicks") for n in range(len(df_input["Financial"].columns[4:]))],
     prevent_initial_call=True)
 def cbf_quickstart_select_financial(*inputs):
-    selection_title = df_input["Financial"].columns[3:][int(ctx.triggered_id[-1])]
+    selection_title = df_input["Financial"].columns[4:][int(ctx.triggered_id[-1])]
     return_lists = fill_inputfields(selection_title, df=df_input["Financial"], output=ctx.outputs_list[1])
 
     output = [selection_title]
@@ -394,11 +402,11 @@ def cbf_quickstart_select_financial(*inputs):
 
 @app.callback(
     Output("txt_NH3_fuel_cost_Preset_Selection", "children"),
-    Output({'type': 'input', 'component': 'Fuel_NH3', 'par': ALL}, 'value'),
-    [Input(f"dd_NH3_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NH3"].columns[3:]))],
+    Output({'type': 'input', 'component': 'Fuel_NH3', 'par': ALL, 'parInfo': ALL}, 'value'),
+    [Input(f"dd_NH3_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NH3"].columns[4:]))],
     prevent_initial_call=True)
 def cbf_quickstart_select_NH3fuel_preset(*inputs):
-    selection_title = df_input["Fuel_NH3"].columns[3:][int(ctx.triggered_id[-1])]
+    selection_title = df_input["Fuel_NH3"].columns[4:][int(ctx.triggered_id[-1])]
     return_lists = fill_inputfields(selection_title, df=df_input["Fuel_NH3"], output=ctx.outputs_list[1])
 
     output = [selection_title]
@@ -409,11 +417,11 @@ def cbf_quickstart_select_NH3fuel_preset(*inputs):
 
 @app.callback(
     Output("txt_NG_fuel_cost_Preset_Selection", "children"),
-    Output({'type': 'input', 'component': 'Fuel_NG', 'par': ALL}, 'value'),
-    [Input(f"dd_NG_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NG"].columns[3:]))],
+    Output({'type': 'input', 'component': 'Fuel_NG', 'par': ALL, 'parInfo': ALL}, 'value'),
+    [Input(f"dd_NG_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NG"].columns[4:]))],
     prevent_initial_call=True)
 def cbf_quickstart_select_NGfuel_preset(*inputs):
-    selection_title = df_input["Fuel_NG"].columns[3:][int(ctx.triggered_id[-1])]
+    selection_title = df_input["Fuel_NG"].columns[4:][int(ctx.triggered_id[-1])]
     return_lists = fill_inputfields(selection_title, df=df_input["Fuel_NG"], output=ctx.outputs_list[1])
 
     output = [selection_title]
@@ -588,16 +596,16 @@ def cbf_lcoesensitivity_plot_sensitivity2_update(inp, state):
 @app.callback(
     Output("txt_out1", "children"),
     Input("bt_collect", "n_clicks"),
-    State({'type': 'input', 'component': ALL, 'par': ALL}, 'value'),
+    State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
     prevent_initial_call=True)
 def cbf_dev_button_initialCollectInput(*args):
     """
     Creates new dataframe / excel table with all inputfields of types defined in callback above.
     Create DataFrame with all input fields and fill with available input
     """
-    df = pd.DataFrame(columns=["component", "par"])
+    df = pd.DataFrame(columns=["component", "par", "parInfo"])
     for dct in ctx.states_list[0]:
-        data = {'component': dct["id"]["component"], 'par': dct["id"]["par"]}
+        data = {'component': dct["id"]["component"], 'par': dct["id"]["par"],'parInfo': dct["id"]["parInfo"]}
         try:
             data.update({0: dct["value"]})
         except KeyError:
@@ -633,24 +641,137 @@ def cbf_dev_button_updateCollectInput(inp, *args):
     df.to_excel("input4_upd.xlsx")
     return "ok"
 
+# @app.callback(
+#     [Output("txt_out6", "children"), Output("storage", "data")], Input("bt_process_Input", "n_clicks"),
+#     State({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
+#     State({'type': 'input_SOFC', 'index': ALL}, 'value'),
+#     State({'type': 'input_ICE', 'index': ALL}, 'value'),
+#     State({'type': 'input_Financials', 'index': ALL}, 'value'),
+#     State({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
+#     State({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
+#     prevent_initial_call=True)
+# def cbf_dev_button_procSelection(*args):
+#     """
+#     Process Input, main function
+#     -----------------------------
+#     # 1. Collect all input variables from data fields
+#     # 2. Save data in DataClasses
+#     # 3. Initialize System objects
+#     # 4. Perform LCOE Calculation
+#     # 5. Save Systems in store locally
+#
+#     """
+#
+#
+#     # print('StartProc:', datetime.datetime.now())
+#     # 1. Collect all input variables from data fields
+#     # ------------------------------------------------------------------------------------------------------------------
+#     dict_combined = {}
+#     for li in ctx.states_list:
+#         dict_name = li[0]["id"]["type"][6:]  # "HiPowar",....
+#         dict_data = {"name": dict_name}
+#
+#         # Identify unique elements
+#         listelements = []
+#         for el in li:
+#             par = el["id"]["index"]
+#             if (par[-4:] == "_max") or (par[-4:] == "_min"):
+#                 par = par[:-4]
+#             listelements.append(par)
+#         unique_listelements = list(set(listelements))
+#
+#         # Initialize Data Dictionary
+#         for le in unique_listelements:
+#             #
+#             matching = [s for s in listelements if le in s]
+#             dict_data.update({le: [None] * len(matching)})
+#
+#         # Fill Data Dictionary
+#         for el in li:
+#             par = el["id"]["index"]
+#             if par[-4:] == "_max":
+#                 par = par[:-4]
+#                 dict_data[par][-1] = el["value"]
+#             elif par[-4:] == "_min":
+#                 par = par[:-4]
+#                 dict_data[par][-2] = el["value"]
+#             else:
+#                 dict_data[par][0] = el["value"]
+#
+#         dict_combined.update({dict_name: dict_data})
+#     # print("debug")
+#     # Initialization of DataClasses
+#     system_name_list = ["HiPowAR", "ICE", "SOFC"]  # ToDO: Global definition
+#     DC_systems = {}
+#     DC_additionals = {}
+#     # print("debug")
+#
+#     # 2. Save data in DataClasses
+#     # ------------------------------------------------------------------------------------------------------------------
+#     for key, dct in dict_combined.items():
+#         if dct["name"] in system_name_list:
+#             DC_systems.update({dct["name"]: from_dict(data_class=DC_SystemInput, data=dct)})
+#         elif dct["name"] == "Financials":
+#             DC_additionals.update({dct["name"]: from_dict(data_class=DC_FinancialInput, data=dct)})
+#         elif dct["name"][:4] == "Fuel":
+#             DC_additionals.update({dct["name"]: from_dict(data_class=DC_FuelInput, data=dct)})
+#
+#     # 3. Initialize System objects
+#     # ------------------------------------------------------------------------------------------------------------------
+#     systems = {}
+#     for key, dct in DC_systems.items():
+#         systems.update({key: System(dct)})
+#
+#     for key, system in systems.items():
+#         system.load_fuel_par(DC_additionals["Fuel_NH3"])
+#         system.load_financial_par(DC_additionals["Financials"])
+#
+#         # 4. Perform LCOE Calculation'
+#         # --------------------------------------------------------------------------------------------------------------
+#         # print('Start Prep:', datetime.datetime.now())
+#         # system.prep_lcoe_input(mode="all")
+#         system.prep_lcoe_input(mode="all_minmax")
+#         # print('Start Calc:', datetime.datetime.now())
+#         system.lcoe_table["LCOE"] = system.lcoe_table.apply(lambda row: systems[key].lcoe(row), axis=1)
+#         # print('End Calc:', datetime.datetime.now())
+#         system.lcoe_table = system.lcoe_table.apply(pd.to_numeric)
+#
+#     # 5. Store data in dcc.storage object
+#     # -----------------------------------------------------------------------------------------------------------------
+#     # https://github.com/jsonpickle/jsonpickle, as json.dumps can only handle simple variables
+#     # Info: Eigentlich sollte jsonpickle reichen, um dict mit Klassenobjekten, in denen DataFrames sind, zu speichern,
+#     #       Es gibt jedoch Fehlermeldungen auf Speicher-Pointer-Ebene. Daher wird Datenstruktur vorher in pickle (Binärformat)
+#     #       gespeichert und dieser anschließend in json konvertiert.
+#     # Konvertierung in json ist notwendig für lokalen dcc storage.
+#     #
+#     data = pickle.dumps(systems)
+#     data = jsonpickle.dumps(data)
+#     # load = pickle.loads(pk)
+#
+#     return [datetime.datetime.now(), data]
 
 @app.callback(
-    [Output("txt_out6", "children"), Output("storage", "data")], Input("bt_process_Input", "n_clicks"),
-    State({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
-    State({'type': 'input_SOFC', 'index': ALL}, 'value'),
-    State({'type': 'input_ICE', 'index': ALL}, 'value'),
-    State({'type': 'input_Financials', 'index': ALL}, 'value'),
-    State({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
-    State({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
+    Output("txt_out6", "children"),
+    Output("storage", "data"),
+    Input("bt_process_Input", "n_clicks"),
+    State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
     prevent_initial_call=True)
 def cbf_dev_button_procSelection(*args):
+    """
+    Process Input, main function
+    -----------------------------
     # 1. Collect all input variables from data fields
     # 2. Save data in DataClasses
     # 3. Initialize System objects
     # 4. Perform LCOE Calculation
     # 5. Save Systems in store locally
 
+    Returns: 'txt_out6' is debug text field, return "ok"
+    """
+
+
     # print('StartProc:', datetime.datetime.now())
+
     # 1. Collect all input variables from data fields
     # ------------------------------------------------------------------------------------------------------------------
     dict_combined = {}
