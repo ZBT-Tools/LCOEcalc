@@ -38,9 +38,8 @@ from scripts.data_transfer import DC_FinancialInput, DC_SystemInput, DC_FuelInpu
 # Storage is defined as first element inside app layout!
 
 # Read input data, presets from excel definition table
-df_input = pd.read_excel("input/Dash_LCOE_ConfigurationV2.xlsx",
+df_input = pd.read_excel("input/Dash_LCOE_ConfigurationV3.xlsx",
                          sheet_name=["Systems", "Financial", "Fuel_NH3", "Fuel_NG"])
-
 
 # Load images (issue with standard image load, due to png?!)
 # https://community.plotly.com/t/png-image-not-showing/15713/2
@@ -221,6 +220,7 @@ app.layout = dbc.Container([
     # https://dash.plotly.com/sharing-data-between-callbacks
     # https://dash.plotly.com/dash-core-components/store
     dcc.Store(id='storage', storage_type='memory'),
+    dcc.Store(id='storage_NG', storage_type='memory'),
 
     # Header Row with Title, Logos,...
     dbc.Row([dbc.Col(html.H1("HiPowAR LCOE Tool"), width=4),
@@ -295,12 +295,14 @@ app.layout = dbc.Container([
             ], title="General Settings", ),
             dbc.AccordionItem([dbc.Row([
                 dbc.Col([
-                    dcc.Graph(id='lcoe-graph')
+                    dcc.Graph(id='lcoe-graph_NH3')
+                ]),
+                dbc.Col([
+                    dcc.Graph(id='lcoe-graph_NG')
                 ])
             ])], title="LCOE Plots"),
             dbc.AccordionItem([
                 dbc.Row([
-                    # dbc.Col([dcc.Graph(id='lcoe-graph-sensitivity')]),
                     dbc.Col([dcc.Graph(id='lcoe-graph-sensitivity2')]),
                 ]),
 
@@ -446,7 +448,7 @@ def cbf_quickstart_select_NGfuel_preset(*inputs):
 
 
 @app.callback(
-    Output('lcoe-graph', 'figure'), Input("txt_out6", "children"),
+    Output('lcoe-graph_NH3', 'figure'), Input("txt_out6", "children"),
     State('storage', 'data'),
     prevent_initial_call=True)
 def cbf_lcoeplot_update(inp, state):
@@ -471,12 +473,41 @@ def cbf_lcoeplot_update(inp, state):
                          marker_color='lightskyblue', boxpoints='all'))
 
     fig.update_layout(
-        title="Levelized Cost of Electricity ",
+        title="Levelized Cost of Electricity - Green Ammonia",
         # xaxis_title="",
         yaxis_title="LCOE [€/kW]")
     return fig
 
+@app.callback(
+    Output('lcoe-graph_NG', 'figure'), Input("txt_out6", "children"),
+    State('storage_NG', 'data'),
+    prevent_initial_call=True)
+def cbf_lcoeplot_NG_update(inp, state):
+    # Read from storage
+    systems = jsonpickle.loads(state)
+    systems = pickle.loads(systems)
 
+    # Simple LCOE Comparison Plot
+    y0 = systems["HiPowAR"].lcoe_table["LCOE"]
+    y1 = systems["SOFC"].lcoe_table["LCOE"]
+    y2 = systems["ICE"].lcoe_table["LCOE"]
+    fig = go.Figure()
+    fig.add_trace(go.Box(y=y0, name='HiPowAR',
+                         # marker_color='indianred',
+                         boxpoints='all',
+                         marker_color='rgb(160,7,97)',
+                         line_color='rgb(31,148,175)'
+                         ))
+    fig.add_trace(go.Box(y=y1, name='SOFC',
+                         marker_color='lightseagreen', boxpoints='all'))
+    fig.add_trace(go.Box(y=y2, name='ICE',
+                         marker_color='lightskyblue', boxpoints='all'))
+
+    fig.update_layout(
+        title="Levelized Cost of Electricity - Natural Gas",
+        # xaxis_title="",
+        yaxis_title="LCOE [€/kW]")
+    return fig
 @app.callback(
     Output('lcoe-graph-sensitivity2', 'figure'), Input("txt_out6", "children"),
     State('storage', 'data'),
@@ -606,6 +637,7 @@ def cbf_lcoesensitivity_plot_sensitivity2_update(inp, state):
     )
 
     return fig
+
 
 @app.callback(
     Output("txt_out1", "children"),
@@ -768,6 +800,7 @@ def cbf_dev_button_updateCollectInput(inp, *args):
 @app.callback(
     Output("txt_out6", "children"),
     Output("storage", "data"),
+    Output("storage_NG", "data"),
     Input("bt_process_Input", "n_clicks"),
     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
     prevent_initial_call=True)
@@ -829,9 +862,11 @@ def cbf_dev_button_procSelection(*args):
     # 3. Initialize System objects
     # ------------------------------------------------------------------------------------------------------------------
     systems = {}
+    systems_NG = {}  # ToDO: This is a quick and dirty solution, rework
     # System initialization
     for key, dct in DC_systems.items():
         systems.update({key: System(dct)})
+        systems_NG.update({key: System(dct)})
 
     # Add same fuel and financial parameters to each system
     for key, system in systems.items():
@@ -844,6 +879,17 @@ def cbf_dev_button_procSelection(*args):
         system.lcoe_table["LCOE"] = system.lcoe_table.apply(lambda row: system.lcoe(row), axis=1)
         system.lcoe_table = system.lcoe_table.apply(pd.to_numeric)
 
+    for key, system in systems_NG.items():
+        system.load_fuel_par(DC_additionals["Fuel_NG"])
+        system.load_financial_par(DC_additionals["Financials"])
+
+        # 4. Perform LCOE Calculation'
+        # --------------------------------------------------------------------------------------------------------------
+        system.prep_lcoe_input(mode="all_minmax")
+        system.lcoe_table["LCOE"] = system.lcoe_table.apply(lambda row: system.lcoe(row), axis=1)
+        system.lcoe_table = system.lcoe_table.apply(pd.to_numeric)
+
+
     # 5. Store data in dcc.storage object
     # -----------------------------------------------------------------------------------------------------------------
     # https://github.com/jsonpickle/jsonpickle, as json.dumps can only handle simple variables
@@ -855,13 +901,15 @@ def cbf_dev_button_procSelection(*args):
     data = pickle.dumps(systems)
     data = jsonpickle.dumps(data)
 
-    return [datetime.datetime.now(), data]
+    data_NG = pickle.dumps(systems_NG)
+    data_NG = jsonpickle.dumps(data_NG)
+    return [datetime.datetime.now(), data, data_NG]
 
 
 @app.callback(
     Output("txt_out7", "children"), Input("bt_debugprint", "n_clicks"),
-    State('storage', 'data'),prevent_initial_call=True)
-def cbf_dev_button_save_data(inp,state):
+    State('storage', 'data'), prevent_initial_call=True)
+def cbf_dev_button_save_data(inp, state):
     with open('data.json', 'w', encoding='utf-8') as f:
         jsonpickle.dump(state, f, ensure_ascii=False, indent=4)
         jsonpickle.dumps
