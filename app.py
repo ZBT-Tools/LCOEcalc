@@ -316,12 +316,12 @@ app.layout = dbc.Container([
                          dbc.Col(dbc.Button("Process Input", id="bt_process_Input"), width=2),
                          dbc.Col(dbc.Button("Debug Print", id="bt_debugprint"), width=2)
                          ]),
-                dbc.Row([html.Pre("...", id="txt_out1")]),  # ToDo: Remove dummy elements
+                dbc.Row([html.Pre("...", id="txt_out1")]),  # ToDo: Remove dummy elements (callback outputs)
                 dbc.Row([html.Pre("...", id="txt_out2")]),
                 dbc.Row([html.Pre("...", id="txt_out3")]),
                 dbc.Row([html.Pre("...", id="txt_out4")]),
                 dbc.Row([html.Pre("...", id="txt_out5")]),
-                dbc.Row([html.Pre("...", id="txt_out6")]),
+                dbc.Row([html.Pre("...", id="flag_calculation_done")]),
                 dbc.Row([html.Pre("...", id="txt_out7")])
             ], title="Developer"),
         ], always_open=True)
@@ -339,11 +339,12 @@ app.layout = dbc.Container([
 def fill_inputfields(input_str: str, df: pd.DataFrame, output: list) -> list:
     """
     Description:
+    input_str: Preset name, selected by dropdown menu
+    df: Input data table (Excel definition file)
+    output: (Portion of) ctx.output_lists of apropriate callback
 
-    Function for filling input fields based on dropdown menu selection.
-
-    output contains list-structure and names of callback output.
-    For each element inside ctx.outputs_list, appropriate data (component, par) from df will be returned.
+    Function for filling input fields based on preset dropdown menu selection. For each element inside "output"
+    (list of lists or single list), appropriate data (component, par, parInfo) from df will be returned.
     """
     # For multiple outputs in callback, 'output' is list of lists [[output1],[output2],...]
     # If only one output is handed over, it will be wrapped in additional list
@@ -448,7 +449,7 @@ def cbf_quickstart_select_NGfuel_preset(*inputs):
 
 
 @app.callback(
-    Output('lcoe-graph_NH3', 'figure'), Input("txt_out6", "children"),
+    Output('lcoe-graph_NH3', 'figure'), Input("flag_calculation_done", "children"),
     State('storage', 'data'),
     prevent_initial_call=True)
 def cbf_lcoeplot_update(inp, state):
@@ -462,15 +463,15 @@ def cbf_lcoeplot_update(inp, state):
     y2 = systems["ICE"].lcoe_table["LCOE"]
     fig = go.Figure()
     fig.add_trace(go.Box(y=y0, name='HiPowAR',
-                         # marker_color='indianred',
                          boxpoints='all',
-                         marker_color='rgb(160,7,97)',
-                         line_color='rgb(31,148,175)'
+                         marker=dict(color='rgb(160,7,97)'),
+                         line=dict(color='rgb(31,148,175)'),
+
                          ))
     fig.add_trace(go.Box(y=y1, name='SOFC',
-                         marker_color='lightseagreen', boxpoints='all'))
+                         marker=dict(color='lightseagreen'), boxpoints='all'))
     fig.add_trace(go.Box(y=y2, name='ICE',
-                         marker_color='lightskyblue', boxpoints='all'))
+                         marker=dict(color='lightskyblue'), boxpoints='all'))
 
     fig.update_layout(
         title="Levelized Cost of Electricity - Green Ammonia",
@@ -478,8 +479,9 @@ def cbf_lcoeplot_update(inp, state):
         yaxis_title="LCOE [€/kW]")
     return fig
 
+
 @app.callback(
-    Output('lcoe-graph_NG', 'figure'), Input("txt_out6", "children"),
+    Output('lcoe-graph_NG', 'figure'), Input("flag_calculation_done", "children"),
     State('storage_NG', 'data'),
     prevent_initial_call=True)
 def cbf_lcoeplot_NG_update(inp, state):
@@ -495,36 +497,38 @@ def cbf_lcoeplot_NG_update(inp, state):
     fig.add_trace(go.Box(y=y0, name='HiPowAR',
                          # marker_color='indianred',
                          boxpoints='all',
-                         marker_color='rgb(160,7,97)',
-                         line_color='rgb(31,148,175)'
+                         marker=dict(color='rgb(160,7,97)'),
+                         line=dict(color='rgb(31,148,175)')
                          ))
     fig.add_trace(go.Box(y=y1, name='SOFC',
-                         marker_color='lightseagreen', boxpoints='all'))
+                         marker=dict(color='lightseagreen'), boxpoints='all'))
     fig.add_trace(go.Box(y=y2, name='ICE',
-                         marker_color='lightskyblue', boxpoints='all'))
+                         marker=dict(color='lightskyblue'), boxpoints='all'))
 
     fig.update_layout(
         title="Levelized Cost of Electricity - Natural Gas",
         # xaxis_title="",
         yaxis_title="LCOE [€/kW]")
     return fig
+
+
 @app.callback(
-    Output('lcoe-graph-sensitivity2', 'figure'), Input("txt_out6", "children"),
+    Output('lcoe-graph-sensitivity2', 'figure'), Input("flag_calculation_done", "children"),
     State('storage', 'data'),
     prevent_initial_call=True)
 def cbf_lcoesensitivity_plot_sensitivity2_update(inp, state):
-    # Read from storage
+    """
+    Analysis of influence of single parameter
+    ------------------------------------
+    (Search in table)
+    For each parameter keep all other parameter at nominal value and modify
+    single parameter
+    Add "modpar" column to lcoe Table, so that groupby can be used for plots
+    """
+    # Read NH3 data from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
-    # print("loaded")
 
-    # Influence of single parameter
-    # ------------------------------------
-    # (Search in table)
-    # For each parameter keep all other parameter at nominal value and modify
-    # single parameter
-    # Add "modpar" column to lcoe Table, so that groupby can be used for plots
-    # #ToDO: Here or in lcoe.py?
     colordict = {"HiPowAR": 'rgb(160,7,97)', "SOFC": 'lightseagreen', "ICE": 'lightskyblue'}
 
     fig = make_subplots(rows=1, cols=2, shared_yaxes=True,
@@ -535,37 +539,40 @@ def cbf_lcoesensitivity_plot_sensitivity2_update(inp, state):
     for system in ["HiPowAR", "SOFC", "ICE"]:
 
         tb = systems[system].lcoe_table.copy()
-        # result_df = pd.DataFrame(columns=["modpar"])
+
+        # Create first plot with only system parameters, identified by "p".
 
         variation_pars = tb.columns.drop(["p_size_kW", "LCOE"])
         variation_pars = variation_pars.drop([x for x in variation_pars if x[0] != "p"])
 
+        # Build new dataframe for plotting
         result_df = pd.DataFrame(columns=tb.columns)
-        result_df.loc["nominal"] = tb.loc["nominal"]
+        result_df.loc["nominal"] = tb.loc["nominal"]  # Always include nominal calculation
         result_df_temp = result_df.copy()
 
         for modpar in variation_pars:
             # Create query string:
             qs = ""
+            # Next rows create query:
+            # Find all result rows, where all other values beside modpar are nomial
             cond = [f"{parm} == {result_df_temp.loc['nominal', parm]}" for parm in variation_pars.drop(modpar)]
             for c in cond:
                 qs = qs + c + " & "
-            qs = qs[:-3]
-            # print(f"Query is:{qs}")
-            # print(f"Query end")
-            tbred = tb.query(qs)
-            rw = tbred.nsmallest(1, modpar)
+            qs = qs[:-3]  # remove last  " & "
+
+            tbred = tb.query(qs)  # search for rows fullfilling query
+            rw = tbred.nsmallest(1, modpar)  # find smallest value of modpar for all results and add to result_df
             rw["modpar"] = modpar
             result_df = pd.concat([result_df, rw])
-            rw = tbred.nlargest(1, modpar)
+            rw = tbred.nlargest(1, modpar)  # find largest value of modpar for all results and add to result_df
             rw["modpar"] = modpar
             result_df = pd.concat([result_df, rw])
 
-        result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]
+        result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]  # Calculate difference to
+        # nominal
 
         result_df.drop_duplicates(keep='first', inplace=True)
 
-        # fig = go.Figure()
         for name, group in result_df.groupby('modpar'):
             trace = go.Box()
             trace.name = system
@@ -584,7 +591,7 @@ def cbf_lcoesensitivity_plot_sensitivity2_update(inp, state):
 
         fig.add_hline(y=result_df.loc["nominal", "LCOE"], line_color=colordict[system])
 
-        ###################################################################################################
+        # Create second plot with only non-system inherent parameters, identified by not "p".
 
         tb = systems[system].lcoe_table.copy()
         # result_df = pd.DataFrame(columns=["modpar"])
@@ -612,7 +619,6 @@ def cbf_lcoesensitivity_plot_sensitivity2_update(inp, state):
 
         result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]
 
-        # fig = go.Figure()
         for name, group in result_df.groupby('modpar'):
             trace = go.Box()
             trace.name = system
@@ -631,7 +637,6 @@ def cbf_lcoesensitivity_plot_sensitivity2_update(inp, state):
         fig.add_hline(y=result_df.loc["nominal", "LCOE"], line_color=colordict[system])
 
     fig.update_layout(
-        # yaxis_title='LCOE [€/kW]',
         showlegend=False,
         boxmode='group'  # group together boxes of the different traces for each value of x
     )
@@ -678,7 +683,7 @@ def cbf_dev_button_updateCollectInput(inp, *args):
     """
     Intention: Save new parameterset to table.
 
-    ToDo: Implement
+    ToDo: Implement correctly
     """
     df = pd.read_pickle("input4.pkl")
     for key, val in ctx.states.items():
@@ -687,8 +692,9 @@ def cbf_dev_button_updateCollectInput(inp, *args):
     df.to_excel("input4_upd.xlsx")
     return "ok"
 
+
 @app.callback(
-    Output("txt_out6", "children"),
+    Output("flag_calculation_done", "children"),
     Output("storage", "data"),
     Output("storage_NG", "data"),
     Input("bt_process_Input", "n_clicks"),
@@ -778,7 +784,6 @@ def cbf_dev_button_procSelection(*args):
         system.prep_lcoe_input(mode="all_minmax")
         system.lcoe_table["LCOE"] = system.lcoe_table.apply(lambda row: system.lcoe(row), axis=1)
         system.lcoe_table = system.lcoe_table.apply(pd.to_numeric)
-
 
     # 5. Store data in dcc.storage object
     # -----------------------------------------------------------------------------------------------------------------
