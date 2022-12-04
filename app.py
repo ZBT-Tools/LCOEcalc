@@ -293,14 +293,20 @@ app.layout = dbc.Container([
                     ], md=4)
                 ])
             ], title="General Settings", ),
-            dbc.AccordionItem([dbc.Row([
-                dbc.Col([
-                    dcc.Graph(id='lcoe-graph_NH3')
-                ]),
-                dbc.Col([
-                    dcc.Graph(id='lcoe-graph_NG')
-                ])
-            ])], title="LCOE Plots"),
+            dbc.AccordionItem([
+                dbc.Row(dbc.Col(
+                    dbc.Table(id="table_lcoe_nominal", bordered=True)
+                ))
+            ], title='Nominal Results'),
+            dbc.AccordionItem([
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Graph(id='graph_lcoe_multi_NH3')
+                    ]),
+                    dbc.Col([
+                        dcc.Graph(id='graph_lcoe_multi_NG')
+                    ])
+                ])], title="LCOE Plots"),
             dbc.AccordionItem([
                 dbc.Row([
                     dbc.Col([dcc.Graph(id='lcoe-graph-sensitivity2')]),
@@ -320,8 +326,8 @@ app.layout = dbc.Container([
                 dbc.Row([html.Pre("...", id="txt_out2")]),
                 dbc.Row([html.Pre("...", id="txt_out3")]),
                 dbc.Row([html.Pre("...", id="txt_out4")]),
-                dbc.Row([html.Pre("...", id="txt_out5")]),
-                dbc.Row([html.Pre("...", id="flag_calculation_done")]),
+                dbc.Row([html.Pre("...", id="flag_nominal_calculation_done")]),
+                dbc.Row([html.Pre("...", id="flag_sensitivity_calculation_done")]),
                 dbc.Row([html.Pre("...", id="txt_out7")])
             ], title="Developer"),
         ], always_open=True)
@@ -449,10 +455,10 @@ def cbf_quickstart_select_NGfuel_preset(*inputs):
 
 
 @app.callback(
-    Output('lcoe-graph_NH3', 'figure'), Input("flag_calculation_done", "children"),
+    Output('graph_lcoe_multi_NH3', 'figure'), Input("flag_calculation_done", "children"),
     State('storage', 'data'),
     prevent_initial_call=True)
-def cbf_lcoeplot_update(inp, state):
+def cbf_lcoeplot_graph_lcoe_multi_NH3_update(inp, state):
     # Read from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
@@ -481,10 +487,10 @@ def cbf_lcoeplot_update(inp, state):
 
 
 @app.callback(
-    Output('lcoe-graph_NG', 'figure'), Input("flag_calculation_done", "children"),
+    Output('graph_lcoe_multi_NG', 'figure'), Input("flag_calculation_done", "children"),
     State('storage_NG', 'data'),
     prevent_initial_call=True)
-def cbf_lcoeplot_NG_update(inp, state):
+def cbf_lcoeplot_graph_lcoe_multi_NG_update(inp, state):
     # Read from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
@@ -692,15 +698,25 @@ def cbf_dev_button_updateCollectInput(inp, *args):
     df.to_excel("input4_upd.xlsx")
     return "ok"
 
+@app.callback(
+    Output("flag_nominal_calculation_done","children"),
+    Output("table_lcoe_nominal", "children"),
+    Input("bt_run_nominal_calculation","n_clicks"),
+    State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': 'nominal'}, 'value'),
+    prevent_initial_call=True)
+def cbf_dev_button_runNominalLCOE(*args):
+    return ...
+
+
 
 @app.callback(
-    Output("flag_calculation_done", "children"),
+    Output("flag_sensitivity_calculation_done", "children"),
     Output("storage", "data"),
     Output("storage_NG", "data"),
     Input("bt_process_Input", "n_clicks"),
     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
     prevent_initial_call=True)
-def cbf_dev_button_procSelection(*args):
+def cbf_dev_button_runSensitivityLCOE(*args):
     """
     Process Input, main function
     -----------------------------
