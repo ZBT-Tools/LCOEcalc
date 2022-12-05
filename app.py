@@ -2,7 +2,7 @@
 
 Description ....
 Test
-#ToDo: Show Graphs at website startup. therefore initialize storage with default systen data and remove 'prevent
+#ToDo: Show Graphs at website startup. therefore initialize storage with default system data and remove 'prevent
     callback' from plot callbacks
 
 Code Structure:
@@ -330,7 +330,7 @@ app.layout = dbc.Container([
                          ]),
                 dbc.Row([html.Pre("...", id="flag_nominal_calculation_done")]),
                 dbc.Row([html.Pre("...", id="flag_sensitivity_calculation_done")]),
-                dbc.Row([html.Pre("...", id="txt_out1")]),  # ToDo: Remove dummy elements (callback outputs)
+                dbc.Row([html.Pre("...", id="txt_out1")]),  # ToDo: Tidy up
                 dbc.Row([html.Pre("...", id="txt_out2")]),
                 dbc.Row([html.Pre("...", id="txt_out3")]),
                 dbc.Row([html.Pre("...", id="txt_out4")]),
@@ -885,15 +885,6 @@ def cbf_dev_button_updateCollectInput(inp, *args):
     df.to_pickle("input4_upd.pkl")
     df.to_excel("input4_upd.xlsx")
     return "ok"
-
-
-@app.callback(
-    Output("txt_out7", "children"), Input("bt_debugprint", "n_clicks"),
-    State('storage', 'data'), prevent_initial_call=True)
-def cbf_dev_button_save_data(inp, state):
-    with open('data.json', 'w', encoding='utf-8') as f:
-        jsonpickle.dump(state, f, ensure_ascii=False, indent=4)
-        jsonpickle.dumps
 
 
 if __name__ == "__main__":
