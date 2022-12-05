@@ -30,7 +30,7 @@ import numpy as np
 from itertools import product
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-from scripts.lcoe import System
+from scripts.lcoe import SystemIntegrated
 from scripts.data_transfer import DC_FinancialInput, DC_SystemInput, DC_FuelInput
 
 # Definition variables
@@ -445,11 +445,11 @@ def initialize_systems(df: pd.DataFrame):
 
     for key, dct in dict_dataclass_systems.items():
         # NH3
-        dict_systems.update({f"{key}_NH3": System(dct)})
+        dict_systems.update({f"{key}_NH3": SystemIntegrated(dct)})
         dict_systems[f"{key}_NH3"].load_fuel_par(dict_dataclass_additionals["Fuel_NH3"])
         dict_systems[f"{key}_NH3"].load_financial_par(dict_dataclass_additionals["Financials"])
         # NG
-        dict_systems.update({f"{key}_NG": System(dct)})
+        dict_systems.update({f"{key}_NG": SystemIntegrated(dct)})
         dict_systems[f"{key}_NG"].load_fuel_par(dict_dataclass_additionals["Fuel_NG"])
         dict_systems[f"{key}_NG"].load_financial_par(dict_dataclass_additionals["Financials"])
 
@@ -461,7 +461,7 @@ def prepare_input_table(dict_systems: dict, mode: str):
     Loop through systems and create lcoe input table
     """
     for key, system in dict_systems.items():
-        system.prep_lcoe_input(mode=mode)
+        system.prepare_input_table(mode=mode)
     return None
 
 
