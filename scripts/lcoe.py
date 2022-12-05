@@ -52,6 +52,9 @@ class System:
                                columns=[key for key, val in mapping.items()])
             df = pd.concat([df, df2])
 
+        elif mode == "nominal":
+            pass
+
         elif mode == "all_minmax":
             # All combinations of each min and max
             # ToDo: Wir brauchen Tabelle, bei der alles systematisch variiert wird.
@@ -76,10 +79,6 @@ class System:
                 df3 = pd.concat([df3, pd.DataFrame([dataset_max, dataset_min])])
 
             df = pd.concat([df, df3])
-
-
-
-
 
         self.lcoe_table = df
 
