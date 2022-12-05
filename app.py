@@ -2,7 +2,7 @@
 
 Description ....
 Test
-#ToDo: Show Graphs at website startup. therefore initialize storage with default systen data and remove 'prevent
+#ToDo: Show Graphs at website startup. therefore initialize storage with default system data and remove 'prevent
     callback' from plot callbacks
 
 Code Structure:
@@ -32,6 +32,9 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from scripts.lcoe import System
 from scripts.data_transfer import DC_FinancialInput, DC_SystemInput, DC_FuelInput
+
+# Definition variables
+system_components = ["HiPowAR", "ICE", "SOFC"]
 
 # Initialization prior to app start
 # ----------------------------------------------------------------------------------------------------------------------
@@ -253,7 +256,12 @@ app.layout = dbc.Container([
                 dbc.Row([
                     dbc.Col(generic_dropdown(id_name="dd_NG_fuel_cost", label="NG Cost Selector",
                                              elements=df_input["Fuel_NG"].columns[4:]), width=2),
-                    dbc.Col(html.P(df_input["Fuel_NG"].columns[4], id="txt_NG_fuel_cost_Preset_Selection"))])
+                    dbc.Col(html.P(df_input["Fuel_NG"].columns[4], id="txt_NG_fuel_cost_Preset_Selection"))]),
+                html.Hr(),
+                dbc.Row([
+                    dbc.Col(dbc.Button("Run Nominal", id="bt_run_nominal"), width=2),
+                    dbc.Col(dbc.Button("Run Study", id="bt_run_study"), width=2)
+                ])
             ]),
             # Menu with input cards for each energy conversion system
             dbc.AccordionItem(title="Energy Conversion System Definition I", children=[
@@ -293,35 +301,39 @@ app.layout = dbc.Container([
                     ], md=4)
                 ])
             ], title="General Settings", ),
-            dbc.AccordionItem([dbc.Row([
-                dbc.Col([
-                    dcc.Graph(id='lcoe-graph_NH3')
-                ]),
-                dbc.Col([
-                    dcc.Graph(id='lcoe-graph_NG')
-                ])
-            ])], title="LCOE Plots"),
+            dbc.AccordionItem([
+                dbc.Row(dbc.Col(
+                    dbc.Table(id="table_lcoe_nominal", bordered=True)
+                ))
+            ], title='Nominal Results'),
             dbc.AccordionItem([
                 dbc.Row([
-                    dbc.Col([dcc.Graph(id='lcoe-graph-sensitivity2')]),
-                ]),
-
-            ], title="LCOE Sensitivity Study"),
+                    dbc.Col([
+                        dcc.Graph(id='graph_lcoe_multi_NH3')
+                    ]),
+                    dbc.Col([
+                        dcc.Graph(id='graph_lcoe_multi_NG')
+                    ])]),
+                html.Hr(),
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Graph(id='lcoe-graph-sensitivity')])
+                ])
+            ], title="LCOE Study Results"),
             dbc.AccordionItem([], title="About"),
             dbc.AccordionItem([
                 dbc.Row([dbc.Col(dbc.Button("Fill Randomly", id="bt_randomfill"), width=2),
                          dbc.Col(dbc.Button("Initial Data Collect", id="bt_collect"), width=2),
                          dbc.Col(dbc.Button("Update Data Collect", id="bt_update_collect"), width=2),
                          dbc.Col(dbc.Button("Load Input", id="bt_load_Input"), width=2),
-                         dbc.Col(dbc.Button("Process Input", id="bt_process_Input"), width=2),
                          dbc.Col(dbc.Button("Debug Print", id="bt_debugprint"), width=2)
                          ]),
-                dbc.Row([html.Pre("...", id="txt_out1")]),  # ToDo: Remove dummy elements (callback outputs)
+                dbc.Row([html.Pre("...", id="flag_nominal_calculation_done")]),
+                dbc.Row([html.Pre("...", id="flag_sensitivity_calculation_done")]),
+                dbc.Row([html.Pre("...", id="txt_out1")]),  # ToDo: Tidy up
                 dbc.Row([html.Pre("...", id="txt_out2")]),
                 dbc.Row([html.Pre("...", id="txt_out3")]),
                 dbc.Row([html.Pre("...", id="txt_out4")]),
-                dbc.Row([html.Pre("...", id="txt_out5")]),
-                dbc.Row([html.Pre("...", id="flag_calculation_done")]),
                 dbc.Row([html.Pre("...", id="txt_out7")])
             ], title="Developer"),
         ], always_open=True)
@@ -367,6 +379,116 @@ def fill_inputfields(input_str: str, df: pd.DataFrame, output: list) -> list:
                 return_list.append(None)
         return_lists.append(return_list)
     return return_lists
+
+
+def read_inputfields(state_selection: list) -> pd.DataFrame:
+    """
+    state_selection: Callback State ctx.states_list[:], can be list or list of lists
+
+    Function reads state_selection and writes data into DataFrame
+    """
+    # For multiple states in callback, 'state_selection' is list of lists [[state1],[state2],...]
+    # If only one state is passed, wrap it into list:
+    if type(state_selection[0]) is not list:
+        state_selection = [state_selection]
+
+    #  Collect data of input fields in dataframe
+    df = pd.DataFrame()
+    for state_list in state_selection:
+        for el in state_list:
+            el_dict = {'component': el['id']['component'],
+                       'par': el['id']['par'],
+                       'parInfo': el['id']['parInfo']}
+            try:
+                el_dict.update({'value': el['value']})
+            except KeyError:
+                el_dict.update({'value': None})
+
+            new_row = pd.Series(el_dict)
+            df = pd.concat([df, new_row.to_frame().T], ignore_index=True)
+
+    return df
+
+
+def initialize_systems(df: pd.DataFrame):
+    # Create dictionary "components_dict" structure from DataFrame df. Reason: dict can be mapped to dataclass easily.
+    # Structure of dictionary:
+    # components_dict = { component1: { par1: [val,val,...], par2: [val,val,...],...}, component2:{...},...}
+    # components_dict = { "HiPowAR": {"Capex": [70,80,90], "Opex": [10,20,30]}, "SOFC": {...}}
+
+    components_dict = {}
+    for c in df.component.unique():
+        component_dict = {'name': c}
+        # Save all parameters for each component in dictionary
+        for p in df.loc[df.component == c, 'par'].unique():
+            values = df.loc[(df.component == c) & (df.par == p), 'value'].to_list()
+            values = [x for x in values if x is not None]  # Remove "None" entries
+            component_dict.update([(p, values)])
+        components_dict.update([(c, component_dict)])
+    # 2. For each entry in components_dict ( = each row of df) create appropriate Dataclass (DC_SystemInput,
+    #    DC_FinancialInput or DC_FuelInput) and add it to dicts dict_dataclass_systems or dict_dataclass_additionals
+    # ------------------------------------------------------------------------------------------------------------------
+    dict_dataclass_systems = {}
+    dict_dataclass_additionals = {}
+
+    for key, dct in components_dict.items():
+        if key in system_components:
+            dict_dataclass_systems.update({key: from_dict(data_class=DC_SystemInput, data=dct)})
+        elif key == "Financials":
+            dict_dataclass_additionals.update({key: from_dict(data_class=DC_FinancialInput, data=dct)})
+        elif key[:4] == "Fuel":
+            dict_dataclass_additionals.update({key: from_dict(data_class=DC_FuelInput, data=dct)})
+
+    # 3. Create System objects with data classes in DC_systems
+    # ------------------------------------------------------------------------------------------------------------------
+    dict_systems = {}
+
+    for key, dct in dict_dataclass_systems.items():
+        # NH3
+        dict_systems.update({f"{key}_NH3": System(dct)})
+        dict_systems[f"{key}_NH3"].load_fuel_par(dict_dataclass_additionals["Fuel_NH3"])
+        dict_systems[f"{key}_NH3"].load_financial_par(dict_dataclass_additionals["Financials"])
+        # NG
+        dict_systems.update({f"{key}_NG": System(dct)})
+        dict_systems[f"{key}_NG"].load_fuel_par(dict_dataclass_additionals["Fuel_NG"])
+        dict_systems[f"{key}_NG"].load_financial_par(dict_dataclass_additionals["Financials"])
+
+    return dict_systems
+
+
+def prepare_input_table(dict_systems: dict, mode: str):
+    """
+    Loop through systems and create lcoe input table
+    """
+    for key, system in dict_systems.items():
+        system.prep_lcoe_input(mode=mode)
+    return None
+
+
+def run_calculation(dict_systems: dict):
+    """
+    Loop through systems and run lcoe calculation
+    """
+    # ------------------------------------------------------------------------------------------------------------------
+    for key, system in dict_systems.items():
+        system.lcoe_table["LCOE"] = system.lcoe_table.apply(lambda row: system.lcoe(row), axis=1)
+        system.lcoe_table = system.lcoe_table.apply(pd.to_numeric)
+
+    return None
+
+
+def store_data(dict_systems: dict):
+    """
+    # https://github.com/jsonpickle/jsonpickle, as json.dumps can only handle simple variables, no objects, DataFrames..
+    # Info: Eigentlich sollte jsonpickle reichen, um dict mit Klassenobjekten, in denen DataFrames sind, zu speichern,
+    #       Es gibt jedoch Fehlermeldungen. Daher wird Datenstruktur vorher in pickle (Binärformat)
+    #       gespeichert und dieser anschließend in json konvertiert.
+    #       (Konvertierung in json ist notwendig für lokalen dcc storage)
+    """
+    data = pickle.dumps(dict_systems)
+    data = jsonpickle.dumps(data)
+
+    return data
 
 
 @app.callback(
@@ -449,18 +571,88 @@ def cbf_quickstart_select_NGfuel_preset(*inputs):
 
 
 @app.callback(
-    Output('lcoe-graph_NH3', 'figure'), Input("flag_calculation_done", "children"),
+    Output("flag_nominal_calculation_done", "children"),
+    Output("table_lcoe_nominal", "children"),
+    Input("bt_run_nominal", "n_clicks"),
+    State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': 'nominal'}, 'value'),
+    prevent_initial_call=True)
+def cbf_quickstart_button_runNominalLCOE(*args):
+    """
+    Returns:    - Datetime to 'flag_sensitivity_calculation_done' textfield.
+                - system-objects, results included, to storage(s)
+    """
+    # 1. Collect nominal input variables from data fields
+    # ------------------------------------------------------------------------------------------------------------------
+    # Collect data of input fields in dataframe
+    df = read_inputfields(ctx.states_list[0])
+
+    # 2. Initialize systems, prepare input-sets, perform calculations
+    # ------------------------------------------------------------------------------------------------------------------
+    dict_systems = initialize_systems(df)
+    prepare_input_table(dict_systems, 'nominal')
+    run_calculation(dict_systems)
+
+    # Read results
+    list_systemname = []
+    list_lcoeval = []
+    for key, system in dict_systems.items():
+        list_systemname.append(key)
+        list_lcoeval.append(system.lcoe_table.loc["nominal", "LCOE"])
+
+    # Format table
+    table_header = [html.Thead(html.Tr([html.Th("System Name"), html.Th("LCOE [€/kWh")]))]
+
+    rows = [html.Tr([html.Td(n), html.Td(v)]) for n, v in zip(list_systemname, list_lcoeval)]
+
+    table_body = [html.Tbody(rows)]
+    table = table_header + table_body  # ToDo Why the heading is not appearing?
+
+    return table
+
+
+@app.callback(
+    Output("flag_sensitivity_calculation_done", "children"),
+    Output("storage", "data"),
+    Input("bt_run_study", "n_clicks"),
+    State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
+    prevent_initial_call=True)
+def cbf_quickstart_button_runSensitivityLCOE(*args):
+    """
+    Returns:    - Datetime to 'flag_sensitivity_calculation_done' textfield.
+                - system-objects, results included, to storage(s)
+    """
+    # 1. Collect all input variables from data fields
+    # ------------------------------------------------------------------------------------------------------------------
+    # Collect data of input fields in dataframe
+    df = read_inputfields(ctx.states_list[0])
+
+    # 2. Initialize systems, prepare input-sets, perform calculations
+    # ------------------------------------------------------------------------------------------------------------------
+    dict_systems = initialize_systems(df)
+    prepare_input_table(dict_systems, 'all_minmax')
+    run_calculation(dict_systems)
+
+    # 5. Store data in dcc.storage object
+    # -----------------------------------------------------------------------------------------------------------------
+    # Create json file:
+    data = store_data(dict_systems)
+    return [datetime.datetime.now(), data]
+
+
+@app.callback(
+    Output('graph_lcoe_multi_NH3', 'figure'),
+    Input("flag_sensitivity_calculation_done", "children"),
     State('storage', 'data'),
     prevent_initial_call=True)
-def cbf_lcoeplot_update(inp, state):
-    # Read from storage
+def cbf_lcoeStudyResults_plot_NH3_update(inp, state):
+    # Read results from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
 
     # Simple LCOE Comparison Plot
-    y0 = systems["HiPowAR"].lcoe_table["LCOE"]
-    y1 = systems["SOFC"].lcoe_table["LCOE"]
-    y2 = systems["ICE"].lcoe_table["LCOE"]
+    y0 = systems["HiPowAR_NH3"].lcoe_table["LCOE"]
+    y1 = systems["SOFC_NH3"].lcoe_table["LCOE"]
+    y2 = systems["ICE_NH3"].lcoe_table["LCOE"]
     fig = go.Figure()
     fig.add_trace(go.Box(y=y0, name='HiPowAR',
                          boxpoints='all',
@@ -481,18 +673,19 @@ def cbf_lcoeplot_update(inp, state):
 
 
 @app.callback(
-    Output('lcoe-graph_NG', 'figure'), Input("flag_calculation_done", "children"),
-    State('storage_NG', 'data'),
+    Output('graph_lcoe_multi_NG', 'figure'),
+    Input("flag_sensitivity_calculation_done", "children"),
+    State('storage', 'data'),
     prevent_initial_call=True)
-def cbf_lcoeplot_NG_update(inp, state):
+def cbf_lcoeStudyResults_plot_NG_update(inp, state):
     # Read from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
 
     # Simple LCOE Comparison Plot
-    y0 = systems["HiPowAR"].lcoe_table["LCOE"]
-    y1 = systems["SOFC"].lcoe_table["LCOE"]
-    y2 = systems["ICE"].lcoe_table["LCOE"]
+    y0 = systems["HiPowAR_NG"].lcoe_table["LCOE"]
+    y1 = systems["SOFC_NG"].lcoe_table["LCOE"]
+    y2 = systems["ICE_NG"].lcoe_table["LCOE"]
     fig = go.Figure()
     fig.add_trace(go.Box(y=y0, name='HiPowAR',
                          # marker_color='indianred',
@@ -513,10 +706,11 @@ def cbf_lcoeplot_NG_update(inp, state):
 
 
 @app.callback(
-    Output('lcoe-graph-sensitivity2', 'figure'), Input("flag_calculation_done", "children"),
+    Output('lcoe-graph-sensitivity', 'figure'),
+    Input("flag_sensitivity_calculation_done", "children"),
     State('storage', 'data'),
     prevent_initial_call=True)
-def cbf_lcoesensitivity_plot_sensitivity2_update(inp, state):
+def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
     """
     Analysis of influence of single parameter
     ------------------------------------
@@ -529,14 +723,14 @@ def cbf_lcoesensitivity_plot_sensitivity2_update(inp, state):
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
 
-    colordict = {"HiPowAR": 'rgb(160,7,97)', "SOFC": 'lightseagreen', "ICE": 'lightskyblue'}
+    colordict = {"HiPowAR_NH3": 'rgb(160,7,97)', "SOFC_NH3": 'lightseagreen', "ICE_NH3": 'lightskyblue'}
 
     fig = make_subplots(rows=1, cols=2, shared_yaxes=True,
                         # x_title='Your master x-title',
                         y_title='LOEC [€/kW]',
                         subplot_titles=('System Sensitivity', 'Environment Sensitivity'))
 
-    for system in ["HiPowAR", "SOFC", "ICE"]:
+    for system in ["HiPowAR_NH3", "SOFC_NH3", "ICE_NH3"]:
 
         tb = systems[system].lcoe_table.copy()
 
@@ -691,123 +885,6 @@ def cbf_dev_button_updateCollectInput(inp, *args):
     df.to_pickle("input4_upd.pkl")
     df.to_excel("input4_upd.xlsx")
     return "ok"
-
-
-@app.callback(
-    Output("flag_calculation_done", "children"),
-    Output("storage", "data"),
-    Output("storage_NG", "data"),
-    Input("bt_process_Input", "n_clicks"),
-    State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
-    prevent_initial_call=True)
-def cbf_dev_button_procSelection(*args):
-    """
-    Process Input, main function
-    -----------------------------
-    # 1. Collect all input variables from data fields
-    # 2. Save data in DataClasses
-    # 3. Initialize System objects
-    # 4. Perform LCOE Calculation
-    # 5. Save Systems in store locally
-
-    Returns:    'txt_out6' is debug text field, return "ok"
-                ...
-    """
-    # 1. Collect all input variables from data fields #ToDo: same function as in cbf_dev_button_initialCollectInput,
-    #  merge!
-    # ------------------------------------------------------------------------------------------------------------------
-    #  Collect data of input fields in dataframe
-    df = pd.DataFrame()
-    for el in ctx.states_list[0]:
-        el_dict = {'component': el['id']['component'],
-                   'par': el['id']['par'],
-                   'parInfo': el['id']['parInfo']}
-        try:
-            el_dict.update({'value': el['value']})
-        except KeyError:
-            el_dict.update({'value': None})
-
-        new_row = pd.Series(el_dict)
-        df = pd.concat([df, new_row.to_frame().T], ignore_index=True)
-
-    # Create dictionaries for dataclass "DC_SystemInput", DC_FinancialInput","DC_FuelInput"
-    # For each parameter, list is expected. Sorting will be done inside dataclass. #ToDo: Simplification from here on
-    system_components = ["HiPowAR", "ICE", "SOFC"]  # ToDO: Global definition
-    components_dict = {}
-    for c in df.component.unique():
-        component_dict = {'name': c}
-        for p in df.loc[df.component == c, 'par'].unique():
-            values = df.loc[(df.component == c) & (df.par == p), 'value'].to_list()
-            values = [x for x in values if x is not None]
-            component_dict.update([(p, values)])
-        components_dict.update([(c, component_dict)])
-
-    # 2. Save data in DataClasses
-    # ------------------------------------------------------------------------------------------------------------------
-    DC_systems = {}
-    DC_additionals = {}
-
-    for key, dct in components_dict.items():
-        if key in system_components:
-            DC_systems.update({key: from_dict(data_class=DC_SystemInput, data=dct)})
-        elif key == "Financials":
-            DC_additionals.update({key: from_dict(data_class=DC_FinancialInput, data=dct)})
-        elif key[:4] == "Fuel":
-            DC_additionals.update({key: from_dict(data_class=DC_FuelInput, data=dct)})
-
-    # 3. Initialize System objects
-    # ------------------------------------------------------------------------------------------------------------------
-    systems = {}
-    systems_NG = {}  # ToDO: This is a quick and dirty solution, rework
-    # System initialization
-    for key, dct in DC_systems.items():
-        systems.update({key: System(dct)})
-        systems_NG.update({key: System(dct)})
-
-    # Add same fuel and financial parameters to each system
-    for key, system in systems.items():
-        system.load_fuel_par(DC_additionals["Fuel_NH3"])
-        system.load_financial_par(DC_additionals["Financials"])
-
-        # 4. Perform LCOE Calculation'
-        # --------------------------------------------------------------------------------------------------------------
-        system.prep_lcoe_input(mode="all_minmax")
-        system.lcoe_table["LCOE"] = system.lcoe_table.apply(lambda row: system.lcoe(row), axis=1)
-        system.lcoe_table = system.lcoe_table.apply(pd.to_numeric)
-
-    for key, system in systems_NG.items():
-        system.load_fuel_par(DC_additionals["Fuel_NG"])
-        system.load_financial_par(DC_additionals["Financials"])
-
-        # 4. Perform LCOE Calculation'
-        # --------------------------------------------------------------------------------------------------------------
-        system.prep_lcoe_input(mode="all_minmax")
-        system.lcoe_table["LCOE"] = system.lcoe_table.apply(lambda row: system.lcoe(row), axis=1)
-        system.lcoe_table = system.lcoe_table.apply(pd.to_numeric)
-
-    # 5. Store data in dcc.storage object
-    # -----------------------------------------------------------------------------------------------------------------
-    # https://github.com/jsonpickle/jsonpickle, as json.dumps can only handle simple variables
-    # Info: Eigentlich sollte jsonpickle reichen, um dict mit Klassenobjekten, in denen DataFrames sind, zu speichern,
-    #       Es gibt jedoch Fehlermeldungen. Daher wird Datenstruktur vorher in pickle (Binärformat)
-    #       gespeichert und dieser anschließend in json konvertiert.
-    #       Konvertierung in json ist notwendig für lokalen dcc storage.
-    #
-    data = pickle.dumps(systems)
-    data = jsonpickle.dumps(data)
-
-    data_NG = pickle.dumps(systems_NG)
-    data_NG = jsonpickle.dumps(data_NG)
-    return [datetime.datetime.now(), data, data_NG]
-
-
-@app.callback(
-    Output("txt_out7", "children"), Input("bt_debugprint", "n_clicks"),
-    State('storage', 'data'), prevent_initial_call=True)
-def cbf_dev_button_save_data(inp, state):
-    with open('data.json', 'w', encoding='utf-8') as f:
-        jsonpickle.dump(state, f, ensure_ascii=False, indent=4)
-        jsonpickle.dumps
 
 
 if __name__ == "__main__":
