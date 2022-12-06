@@ -1,5 +1,8 @@
-from dataclasses import dataclass, fields
+"""
+Definition of Input DataClasses for class SystemIntegrated
+"""
 
+from dataclasses import dataclass, fields
 
 def sortlists(self):
     for field in fields(self):

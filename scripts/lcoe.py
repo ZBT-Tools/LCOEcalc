@@ -1,54 +1,17 @@
-from data_transfer import  DC_FinancialInput,DC_SystemInput,DC_FuelInput
+#from data_transfer import DC_FinancialInput, DC_SystemInput, DC_FuelInput
 import pandas as pd
 from statistics import median
 from itertools import product
+from scripts.data_transfer import DC_FinancialInput, DC_SystemInput, DC_FuelInput
 
-
-def lcoe(inp: pd.core.series.Series):
-    """..."""
-    df = pd.DataFrame(index=range(0, int(inp.fin_lifetime_yr) + 1, 1),
-                      columns=["Investment", "OM", "Fuel", "Power"])
-    df.loc[0, :] = 0
-
-    # Investment Costs
-    # ----------------------------
-    df.loc[0, "Investment"] = inp.p_size_kW * inp.p_capex_Eur_kW
-    df.loc[1:, "Investment"] = 0
-
-    # O&M Costs
-    # ----------------------------
-    df.loc[1:, "OM"] = inp.p_size_kW * inp.fin_operatinghoursyearly * inp.p_opex_Eur_kWh
-
-    # Fuel Costs
-    # ----------------------------
-    df.loc[1:, "Fuel"] = inp.p_size_kW * inp.fin_operatinghoursyearly * inp.fuel_cost_Eur_per_kWh * 100 / inp.p_eta_perc
-
-    # Electricity Generation
-    # ----------------------------
-    df.loc[1:, "Power"] = inp.p_size_kW * inp.fin_operatinghoursyearly
-
-    # Financial Accumulation
-    # ----------------------------
-    df["Investment_fin"] = df.apply(lambda row: row.Investment / (1 + inp.fin_discountrate_perc / 100) ** int(row.name),
-                                    axis=1)
-    df["OM_fin"] = df.apply(lambda row: row.OM / (1 + inp.fin_discountrate_perc / 100) ** int(row.name), axis=1)
-    df["Fuel_fin"] = df.apply(lambda row: row.Fuel / (1 + inp.fin_discountrate_perc / 100) ** int(row.name), axis=1)
-    df["Power_fin"] = df.apply(lambda row: row.Power / (1 + inp.fin_discountrate_perc / 100) ** int(row.name),
-                               axis=1)
-
-    lcoe_val = (df["Investment_fin"].sum() + df["OM_fin"].sum() + df["Fuel_fin"].sum()) / \
-               df["Power_fin"].sum()  # [€/kWh]
-
-    return lcoe_val
-
-
-class System:
-    """
-    #ToDO: Rework
-    Parent class for System classes.
-    Provides pure LCOE calculation.
-    Child classes have different ways provide input data for calculation.
-    """
+#
+# class System:
+#     """
+#     #ToDO: Rework
+#     Parent class for System classes.
+#     Provides pure LCOE calculation.
+#     Child classes have different ways provide input data for calculation.
+#     """
 
 
 class SystemIntegrated:
@@ -132,6 +95,43 @@ class SystemIntegrated:
             df = pd.concat([df, df3])
 
         self.lcoe_table = df
+
+    def lcoe(self, inp: pd.core.series.Series):
+        """..."""
+        df = pd.DataFrame(index=range(0, int(inp.fin_lifetime_yr) + 1, 1),
+                          columns=["Investment", "OM", "Fuel", "Power"])
+        df.loc[0, :] = 0
+
+        # Investment Costs
+        # ----------------------------
+        df.loc[0, "Investment"] = inp.p_size_kW * inp.p_capex_Eur_kW
+        df.loc[1:, "Investment"] = 0
+
+        # O&M Costs
+        # ----------------------------
+        df.loc[1:, "OM"] = inp.p_size_kW * inp.fin_operatinghoursyearly * inp.p_opex_Eur_kWh
+
+        # Fuel Costs
+        # ----------------------------
+        df.loc[1:, "Fuel"] = inp.p_size_kW * inp.fin_operatinghoursyearly * inp.fuel_cost_Eur_per_kWh * 100 / inp.p_eta_perc
+
+        # Electricity Generation
+        # ----------------------------
+        df.loc[1:, "Power"] = inp.p_size_kW * inp.fin_operatinghoursyearly
+
+        # Financial Accumulation
+        # ----------------------------
+        df["Investment_fin"] = df.apply(lambda row: row.Investment / (1 + inp.fin_discountrate_perc / 100) ** int(row.name),
+                                        axis=1)
+        df["OM_fin"] = df.apply(lambda row: row.OM / (1 + inp.fin_discountrate_perc / 100) ** int(row.name), axis=1)
+        df["Fuel_fin"] = df.apply(lambda row: row.Fuel / (1 + inp.fin_discountrate_perc / 100) ** int(row.name), axis=1)
+        df["Power_fin"] = df.apply(lambda row: row.Power / (1 + inp.fin_discountrate_perc / 100) ** int(row.name),
+                                   axis=1)
+
+        lcoe_val = (df["Investment_fin"].sum() + df["OM_fin"].sum() + df["Fuel_fin"].sum()) / \
+                   df["Power_fin"].sum()  # [€/kWh]
+
+        return lcoe_val
 
 
 if __name__ == "__main__":
