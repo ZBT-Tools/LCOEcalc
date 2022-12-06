@@ -1,26 +1,42 @@
-#
-# from data_transfer import DC_FuelInput,DC_FinancialInput,DC_SystemInput
+#from data_transfer import DC_FinancialInput, DC_SystemInput, DC_FuelInput
 import pandas as pd
 from statistics import median
 from itertools import product
+from scripts.data_transfer import DC_FinancialInput, DC_SystemInput, DC_FuelInput
+
+#
+# class System:
+#     """
+#     #ToDO: Rework
+#     Parent class for System classes.
+#     Provides pure LCOE calculation.
+#     Child classes have different ways provide input data for calculation.
+#     """
 
 
-class System:
-    """..."""
+class SystemIntegrated:
+    """
+    Integrated System Class.
+    System object is initialized with all input data (min, max, nominal) for each input.
+    Creation of input sets etc. will be performed inside object.
+    """
 
-    def __init__(self, DC_SystemInput):
+    def __init__(self, sysinput: DC_SystemInput):
         self.lcoe_table = None
         self.fin = None
         self.fuel = None
-        self.p = DC_SystemInput
+        self.p = sysinput
 
-    def load_financial_par(self, DC_FinancialInput):
-        self.fin = DC_FinancialInput
+    def load_financial_par(self, fininput: DC_FinancialInput):
+        self.fin = fininput
 
-    def load_fuel_par(self, DC_FuelInput):
-        self.fuel = DC_FuelInput
+    def load_fuel_par(self, fuelinput: DC_FuelInput):
+        self.fuel = fuelinput
 
-    def prep_lcoe_input(self, mode="minmax"):
+    def prepare_input_table(self, mode="minmax"):
+        """
+        Creates DataFrame. Columns for each input parameter. Each row is one input set.
+        """
         df = pd.DataFrame(columns=["p_size_kW",
                                    "p_capex_Eur_kW",
                                    "p_opex_Eur_kWh",
@@ -39,26 +55,24 @@ class System:
                    "fin_discountrate_perc": self.fin.discountrate_perc,
                    "fuel_cost_Eur_per_kWh": self.fuel.cost_Eur_per_kWh}
 
-        # Simplest parameter: ALl min, all nominal, all max
-
+        # Simple input sets will be added always:
         for key, val in mapping.items():
             df.loc["min", key] = min(val)
             df.loc["nominal", key] = median(val)
             df.loc["max", key] = max(val)
 
         if mode == "all":
-            # All combinations
+            # Create all possible combinations.
             df2 = pd.DataFrame(list(product(*[val for key, val in mapping.items()])),
                                columns=[key for key, val in mapping.items()])
             df = pd.concat([df, df2])
 
         elif mode == "nominal":
+            # ... no additional input sets will be generated, as "nominal" is always included
             pass
 
         elif mode == "all_minmax":
-            # All combinations of each min and max
-            # ToDo: Wir brauchen Tabelle, bei der alles systematisch variiert wird.
-            # Also immer einen Min/Max, rest nominal
+            # Only vary one input variable to min and max, keep all others at nominal value.
 
             # All possible combinations of all min & max values
             l1 = [val for key, val in mapping.items()]
@@ -99,8 +113,7 @@ class System:
 
         # Fuel Costs
         # ----------------------------
-        df.loc[1:,
-        "Fuel"] = inp.p_size_kW * inp.fin_operatinghoursyearly * inp.fuel_cost_Eur_per_kWh * 100 / inp.p_eta_perc
+        df.loc[1:, "Fuel"] = inp.p_size_kW * inp.fin_operatinghoursyearly * inp.fuel_cost_Eur_per_kWh * 100 / inp.p_eta_perc
 
         # Electricity Generation
         # ----------------------------
@@ -108,9 +121,8 @@ class System:
 
         # Financial Accumulation
         # ----------------------------
-        df["Investment_fin"] = df.apply(
-            lambda row: row.Investment / (1 + inp.fin_discountrate_perc / 100) ** int(row.name),
-            axis=1)
+        df["Investment_fin"] = df.apply(lambda row: row.Investment / (1 + inp.fin_discountrate_perc / 100) ** int(row.name),
+                                        axis=1)
         df["OM_fin"] = df.apply(lambda row: row.OM / (1 + inp.fin_discountrate_perc / 100) ** int(row.name), axis=1)
         df["Fuel_fin"] = df.apply(lambda row: row.Fuel / (1 + inp.fin_discountrate_perc / 100) ** int(row.name), axis=1)
         df["Power_fin"] = df.apply(lambda row: row.Power / (1 + inp.fin_discountrate_perc / 100) ** int(row.name),
@@ -127,7 +139,7 @@ if __name__ == "__main__":
     financialinp = DC_FinancialInput(discountrate_perc=3, lifetime_yr=10, operatinghoursyearly=6000)
     fuelinp = DC_FuelInput(name="NH3", cost_Eur_per_kW=0.05, costincrease_percent_per_year=0)
 
-    hipowar = System(sysinp)
+    hipowar = SystemIntegrated(sysinp)
     hipowar.load_fuel_par(fuelinp)
     hipowar.load_financial_par(financialinp)
 
