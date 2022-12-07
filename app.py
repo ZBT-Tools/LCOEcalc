@@ -13,9 +13,15 @@ Code Structure:
     - App layout definition
 
 """
+import pandas as pd
 
 import dash
 from dash import Input, Output, dcc, html, ctx, State, MATCH, ALL
+
+import dash_bootstrap_components as dbc
+from scripts.gui_functions import styling_input_card_component, styling_generic_dropdown, styling_input_card_generic, \
+    fill_input_fields, read_input_fields, build_initial_collect
+
 import base64
 # import plotly.graph_objs as go
 from flask_caching import Cache
@@ -27,9 +33,9 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from scripts.lcoe_class import SystemIntegrated
 from scripts.loce_class_helper import DC_FinancialInput, DC_SystemInput, DC_FuelInput
-from scripts.gui_functions import *
+
 from scripts.parameter_study import InputHandlerLCOE
-from scripts.lcoe_simple import DataclassLCOEsimpleInput
+from scripts.lcoe_simple import multisystem_calculation
 
 # Definition variables
 system_components = ["HiPowAR", "ICE", "SOFC"]
@@ -199,76 +205,6 @@ app.layout = dbc.Container([
 # --------------------------------------------------------------
 # --------------------------------------------------------------
 
-
-def initialize_systems(df: pd.DataFrame):
-    """
-    Create dictionary "components_dict" structure from DataFrame df. Reason: dict can be mapped to dataclass easily.
-    Structure of dictionary:
-    components_dict = { component1: { par1: [val,val,...], par2: [val,val,...],...}, component2:{...},...}
-    components_dict = { "HiPowAR": {"Capex": [70,80,90], "Opex": [10,20,30]}, "SOFC": {...}}
-    """
-
-    components_dict = {}
-    for c in df.component.unique():
-        component_dict = {'name': c}
-        # Save all parameters for each component in dictionary
-        for p in df.loc[df.component == c, 'par'].unique():
-            values = df.loc[(df.component == c) & (df.par == p), 'value'].to_list()
-            values = [x for x in values if x is not None]  # Remove "None" entries
-            component_dict.update([(p, values)])
-        components_dict.update([(c, component_dict)])
-    # 2. For each entry in components_dict ( = each row of df) create appropriate Dataclass (DC_SystemInput,
-    #    DC_FinancialInput or DC_FuelInput) and add it to dicts dict_dataclass_systems or dict_dataclass_additionals
-    # ------------------------------------------------------------------------------------------------------------------
-    dict_dataclass_systems = {}
-    dict_dataclass_additionals = {}
-
-    for key, dct in components_dict.items():
-        if key in system_components:
-            dict_dataclass_systems.update({key: from_dict(data_class=DC_SystemInput, data=dct)})
-        elif key == "Financials":
-            dict_dataclass_additionals.update({key: from_dict(data_class=DC_FinancialInput, data=dct)})
-        elif key[:4] == "Fuel":
-            dict_dataclass_additionals.update({key: from_dict(data_class=DC_FuelInput, data=dct)})
-
-    # 3. Create System objects with data classes in DC_systems
-    # ------------------------------------------------------------------------------------------------------------------
-    dict_systems = {}
-
-    for key, dct in dict_dataclass_systems.items():
-        # NH3
-        dict_systems.update({f"{key}_NH3": SystemIntegrated(dct)})
-        dict_systems[f"{key}_NH3"].load_fuel_par(dict_dataclass_additionals["Fuel_NH3"])
-        dict_systems[f"{key}_NH3"].load_financial_par(dict_dataclass_additionals["Financials"])
-        # NG
-        dict_systems.update({f"{key}_NG": SystemIntegrated(dct)})
-        dict_systems[f"{key}_NG"].load_fuel_par(dict_dataclass_additionals["Fuel_NG"])
-        dict_systems[f"{key}_NG"].load_financial_par(dict_dataclass_additionals["Financials"])
-
-    return dict_systems
-
-
-def prepare_input_table(dict_systems: dict, mode: str):
-    """
-    Loop through systems and create lcoe input table
-    """
-    for key, system in dict_systems.items():
-        system.prepare_input_table(mode=mode)
-    return None
-
-
-def run_calculation(dict_systems: dict):
-    """
-    Loop through systems and run lcoe calculation
-    """
-    # ------------------------------------------------------------------------------------------------------------------
-    for key, system in dict_systems.items():
-        system.lcoe_table["LCOE"] = system.lcoe_table.apply(lambda row: system.lcoe(row), axis=1)
-        system.lcoe_table = system.lcoe_table.apply(pd.to_numeric)
-
-    return None
-
-
 def store_data(dict_systems: dict):
     """
     # https://github.com/jsonpickle/jsonpickle, as json.dumps can only handle simple variables, no objects, DataFrames..
@@ -380,16 +316,15 @@ def cbf_quickstart_button_runNominalLCOE(*args):
 
     # 2. Initialize systems, prepare input-sets, perform calculations
     # ------------------------------------------------------------------------------------------------------------------
-    dict_systems = initialize_systems(df)
-    prepare_input_table(dict_systems, 'nominal')
-    run_calculation(dict_systems)
+    data = multisystem_calculation(df, system_components, ["Fuel_NH3", "Fuel_NG"], "nominal")
 
-    # Read results
+    # Read results and write into Table
+    # ------------------------------------------------------------------------------------------------------------------
     list_systemname = []
     list_lcoeval = []
-    for key, system in dict_systems.items():
+    for key, system in data.items():
         list_systemname.append(key)
-        list_lcoeval.append(system.lcoe_table.loc["nominal", "LCOE"])
+        list_lcoeval.append(system.df_results.loc["nominal", "LCOE"])
 
     # Format table
     table_header = [html.Thead(html.Tr([html.Th("System Name"), html.Th("LCOE [€/kWh")]))]
@@ -420,14 +355,12 @@ def cbf_quickstart_button_runSensitivityLCOE(*args):
 
     # 2. Initialize systems, prepare input-sets, perform calculations
     # ------------------------------------------------------------------------------------------------------------------
-    dict_systems = initialize_systems(df)
-    prepare_input_table(dict_systems, 'all_minmax')
-    run_calculation(dict_systems)
+    systems = multisystem_calculation(df, system_components, ["Fuel_NH3", "Fuel_NG"], "all_minmax")
 
     # 5. Store data in dcc.storage object
     # -----------------------------------------------------------------------------------------------------------------
     # Create json file:
-    data = store_data(dict_systems)
+    data = store_data(systems)
     return [datetime.datetime.now(), data]
 
 
@@ -442,9 +375,9 @@ def cbf_lcoeStudyResults_plot_NH3_update(inp, state):
     systems = pickle.loads(systems)
 
     # Simple LCOE Comparison Plot
-    y0 = systems["HiPowAR_NH3"].lcoe_table["LCOE"]
-    y1 = systems["SOFC_NH3"].lcoe_table["LCOE"]
-    y2 = systems["ICE_NH3"].lcoe_table["LCOE"]
+    y0 = systems["HiPowAR_NH3"].df_results["LCOE"]
+    y1 = systems["SOFC_NH3"].df_results["LCOE"]
+    y2 = systems["ICE_NH3"].df_results["LCOE"]
     fig = go.Figure()
     fig.add_trace(go.Box(y=y0, name='HiPowAR',
                          boxpoints='all',
@@ -475,9 +408,9 @@ def cbf_lcoeStudyResults_plot_NG_update(inp, state):
     systems = pickle.loads(systems)
 
     # Simple LCOE Comparison Plot
-    y0 = systems["HiPowAR_NG"].lcoe_table["LCOE"]
-    y1 = systems["SOFC_NG"].lcoe_table["LCOE"]
-    y2 = systems["ICE_NG"].lcoe_table["LCOE"]
+    y0 = systems["HiPowAR_NG"].df_results["LCOE"]
+    y1 = systems["SOFC_NG"].df_results["LCOE"]
+    y2 = systems["ICE_NG"].df_results["LCOE"]
     fig = go.Figure()
     fig.add_trace(go.Box(y=y0, name='HiPowAR',
                          # marker_color='indianred',
@@ -524,12 +457,12 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
 
     for system in ["HiPowAR_NH3", "SOFC_NH3", "ICE_NH3"]:
 
-        tb = systems[system].lcoe_table.copy()
+        tb = systems[system].df_results.copy()
 
         # Create first plot with only system parameters, identified by "p".
 
-        variation_pars = tb.columns.drop(["p_size_kW", "LCOE"])
-        variation_pars = variation_pars.drop([x for x in variation_pars if x[0] != "p"])
+        variation_pars = tb.columns.drop(["size_kW", "LCOE"])
+        #variation_pars = variation_pars.drop([x for x in variation_pars if x[0] != "p"])
 
         # Build new dataframe for plotting
         result_df = pd.DataFrame(columns=tb.columns)
@@ -568,59 +501,54 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
                        group["LCOE"].min()
                        ]
             trace.marker["color"] = colordict[system]
-            # trace.error_y = dict(
-            #    type='data',
-            #    symmetric=False,
-            #    array=[group["diff"].max()],
-            #    arrayminus=[abs(group["diff"].min())])
             fig.add_trace(trace, row=1, col=1)
 
         fig.add_hline(y=result_df.loc["nominal", "LCOE"], line_color=colordict[system])
 
-        # Create second plot with only non-system inherent parameters, identified by not "p".
-
-        tb = systems[system].lcoe_table.copy()
-        # result_df = pd.DataFrame(columns=["modpar"])
-
-        variation_pars = tb.columns.drop(["p_size_kW", "LCOE"])
-        variation_pars = variation_pars.drop([x for x in variation_pars if x[0] == "p"])
-
-        result_df = pd.DataFrame(columns=tb.columns)
-        result_df.loc["nominal"] = tb.loc["nominal"]
-
-        for modpar in variation_pars:
-            # Create query string:
-            qs = ""
-            cond = [f"{parm} == {result_df.loc['nominal', parm]}" for parm in variation_pars.drop(modpar)]
-            for c in cond:
-                qs = qs + c + " & "
-            qs = qs[:-3]
-            tbred = tb.query(qs)
-            rw = tbred.nsmallest(1, modpar)
-            rw["modpar"] = modpar
-            result_df = pd.concat([result_df, rw])
-            rw = tbred.nlargest(1, modpar)
-            rw["modpar"] = modpar
-            result_df = pd.concat([result_df, rw])
-
-        result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]
-
-        for name, group in result_df.groupby('modpar'):
-            trace = go.Box()
-            trace.name = system
-            trace.x = [name] * 3
-            trace.y = [result_df.loc["nominal", "LCOE"],
-                       group["LCOE"].max(),
-                       group["LCOE"].min()]
-            trace.marker["color"] = colordict[system]
-            # trace.error_y = dict(
-            #    type='data',
-            #    symmetric=False,
-            #    array=[group["diff"].max()],
-            #    arrayminus=[abs(group["diff"].min())])
-            fig.add_trace(trace, row=1, col=2, )
-
-        fig.add_hline(y=result_df.loc["nominal", "LCOE"], line_color=colordict[system])
+        # # Create second plot with only non-system inherent parameters, identified by not "p".
+        #
+        # tb = systems[system].lcoe_table.copy()
+        # # result_df = pd.DataFrame(columns=["modpar"])
+        #
+        # variation_pars = tb.columns.drop(["p_size_kW", "LCOE"])
+        # variation_pars = variation_pars.drop([x for x in variation_pars if x[0] == "p"])
+        #
+        # result_df = pd.DataFrame(columns=tb.columns)
+        # result_df.loc["nominal"] = tb.loc["nominal"]
+        #
+        # for modpar in variation_pars:
+        #     # Create query string:
+        #     qs = ""
+        #     cond = [f"{parm} == {result_df.loc['nominal', parm]}" for parm in variation_pars.drop(modpar)]
+        #     for c in cond:
+        #         qs = qs + c + " & "
+        #     qs = qs[:-3]
+        #     tbred = tb.query(qs)
+        #     rw = tbred.nsmallest(1, modpar)
+        #     rw["modpar"] = modpar
+        #     result_df = pd.concat([result_df, rw])
+        #     rw = tbred.nlargest(1, modpar)
+        #     rw["modpar"] = modpar
+        #     result_df = pd.concat([result_df, rw])
+        #
+        # result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]
+        #
+        # for name, group in result_df.groupby('modpar'):
+        #     trace = go.Box()
+        #     trace.name = system
+        #     trace.x = [name] * 3
+        #     trace.y = [result_df.loc["nominal", "LCOE"],
+        #                group["LCOE"].max(),
+        #                group["LCOE"].min()]
+        #     trace.marker["color"] = colordict[system]
+        #     # trace.error_y = dict(
+        #     #    type='data',
+        #     #    symmetric=False,
+        #     #    array=[group["diff"].max()],
+        #     #    arrayminus=[abs(group["diff"].min())])
+        #     fig.add_trace(trace, row=1, col=2, )
+        #
+        # fig.add_hline(y=result_df.loc["nominal", "LCOE"], line_color=colordict[system])
 
     fig.update_layout(
         showlegend=False,
@@ -693,15 +621,8 @@ def cbf_dev_button_init(inp, *args):
     """
     # Collect data of input fields in dataframe
     df = read_input_fields(ctx.states_list[0])
-    # Reduce to one system and one fuel
-    df = df.loc[(df.component == "SOFC") |
-                (df.component == "Financials") |
-                (df.component == "Fuel_NH3"), :]
-
-    # Init Input Handler
-    hipowar_NH3 = InputHandlerLCOE(df=df, dc=DataclassLCOEsimpleInput,
-                                   dict_additionalNames={"name": "SOFC", "fuel_name": "NH3"})
-    hipowar_NH3.create_input_sets(mode="all_minmax")
+    data = multisystem_calculation(df, system_components, ["Fuel_NH3", "Fuel_NG"], "all_minmax")
+    print("ok")
 
 
 if __name__ == "__main__":

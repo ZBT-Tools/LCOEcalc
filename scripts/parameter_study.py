@@ -1,9 +1,9 @@
 import pandas as pd
-import numpy as np
 from dataclasses import dataclass
 from statistics import median
 from itertools import product
 from dacite import from_dict
+#from scripts.lcoe_simple import lcoe
 
 
 class InputHandler:
@@ -12,6 +12,23 @@ class InputHandler:
     It provides functions for systematic generation of inputset and generation of Dataclass conform input
     It provides functions for running the code and storing the results.
     """
+
+    def submit_job(self, func, df: pd.DataFrame, inputcolumn="dataclass", resultcolumn="result",
+                   removeInputcolumn=True):
+        """
+        #ToDO Documentation
+        Input: progr    Program or function to execute.
+        Descr.: Uses self.df_input_sets and
+
+        Output:
+            - Valid Input for calculation (DataClass), Validity check will be done by programm
+        """
+        df[resultcolumn] = df[inputcolumn].apply(func)
+
+        if removeInputcolumn:
+            df.drop(columns=inputcolumn, inplace=True)
+
+        return df
 
 
 class InputHandlerLCOE(InputHandler):
@@ -33,7 +50,10 @@ class InputHandlerLCOE(InputHandler):
             - self.dict_var_par,        dict with structure {par1: [val1,val2,...], par2: [val1,val2,val3], sorted values,
                                         used for generation of variations
         """
+        # invoking the constructor of
+        # the parent class
 
+        self.df_results = None
         self.df_input_sets = None
         self.dc = dc
         self.dict_additionalNames = dict_additionalNames
@@ -44,13 +64,13 @@ class InputHandlerLCOE(InputHandler):
 
         # Reduced input dfs of numeric & non-numeric parameter from Dataclass
         df_var_par = df.loc[df.par.isin(self.list_numeric_dc_pars), :].copy()
-        df_nonvar_par = df.loc[df.par.isin(self.list_nonnumeric_dc_pars), :].copy()
+        # df_nonvar_par = df.loc[df.par.isin(self.list_nonnumeric_dc_pars), :].copy()
 
         # Create dict with structure {par1: [val1,val2,...], par2: [val1,val2,val3], where values are sorted
         dict_var_par = {}
         for par in self.list_numeric_dc_pars:
             val_list = list(df_var_par.loc[df_var_par.par == par, 'value'].values)
-            val_list = [x for x in val_list if x is not None] # Remove None
+            val_list = [x for x in val_list if x is not None]  # Remove None
             val_list.sort()
             dict_var_par[par] = val_list
         self.dict_var_par = dict_var_par
@@ -70,15 +90,6 @@ class InputHandlerLCOE(InputHandler):
 
         # Initialize DataFrame with all dataclass variables
         df = pd.DataFrame(columns=[key for key in self.dc.__dataclass_fields__])
-
-        # mapping = {"p_size_kW": self.p.size_kW,
-        #            "p_capex_Eur_kW": self.p.capex_Eur_kW,
-        #            "p_opex_Eur_kWh": self.p.opex_Eur_kWh,
-        #            "p_eta_perc": self.p.eta_perc,
-        #            "fin_lifetime_yr": self.fin.lifetime_yr,
-        #            "fin_operatinghoursyearly": self.fin.operatinghoursyearly,
-        #            "fin_discountrate_perc": self.fin.discountrate_perc,
-        #            "fuel_cost_Eur_per_kWh": self.fuel.cost_Eur_per_kWh}
 
         # 1) combinations of numeric parameter will be generated.
 
@@ -130,14 +141,8 @@ class InputHandlerLCOE(InputHandler):
 
         self.df_input_sets = df
 
-    def submit_job(self, prog):
-        """
-        Input: progr    Program or function to execute.
-        Descr.: Uses self.df_input_sets and
-
-        Output:
-            - Valid Input for calculation (DataClass), Validity check will be done by programm
-        """
+    def submit_job(self, func):
+        self.df_results = super().submit_job(func, self.df_input_sets, resultcolumn="LCOE")
 
 
 if __name__ == '__main__':

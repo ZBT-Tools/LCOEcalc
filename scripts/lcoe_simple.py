@@ -1,5 +1,6 @@
 import pandas as pd
 from dataclasses import dataclass
+from scripts.parameter_study import InputHandlerLCOE
 
 
 @dataclass
@@ -60,6 +61,29 @@ def lcoe(inp: DataclassLCOEsimpleInput):
     return lcoe_val
 
 
+def multisystem_calculation(df: pd.DataFrame, system_names: list, fuel_names: list, mode: str):
+    """
+    Initialize InputHandlerLOCE-object for all systems and fuel combinations
+    """
+    dict_systems = {}
+
+    for system in system_names:
+        for fuel in fuel_names:
+            # Reduce to one system and one fuel
+            dfred = df.loc[(df.component == system) |
+                           (df.component == "Financials") |
+                           (df.component == fuel), :]
+
+            # Init Input Handler
+            inputhandler = InputHandlerLCOE(df=dfred, dc=DataclassLCOEsimpleInput,
+                                            dict_additionalNames={"name": system, "fuel_name": fuel})
+            inputhandler.create_input_sets(mode=mode)
+            inputhandler.submit_job(lcoe)
+            dict_systems.update({f"{system}_{fuel[5:]}": inputhandler})
+
+    return dict_systems
+
+
 if __name__ == '__main__':
     dc = DataclassLCOEsimpleInput(eta_perc=99,
                                   name='Dream',
@@ -75,6 +99,6 @@ if __name__ == '__main__':
                                   )
 
     # Print parameters of DataclassLCOEsimpleInput
-    for key,val in DataclassLCOEsimpleInput.__dataclass_fields__.items():
+    for key, val in DataclassLCOEsimpleInput.__dataclass_fields__.items():
         if val.type.__name__ != 'str':
             print(key)
