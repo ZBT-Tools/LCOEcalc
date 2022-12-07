@@ -16,24 +16,20 @@ Code Structure:
 
 import dash
 from dash import Input, Output, dcc, html, ctx, State, MATCH, ALL
-import json
-import dash_bootstrap_components as dbc
-import pandas as pd
 import base64
-import plotly.graph_objs as go
+# import plotly.graph_objs as go
 from flask_caching import Cache
 from dacite import from_dict
 import pickle
 import jsonpickle
 import datetime
-import numpy as np
-from itertools import product
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-
-from scripts.lcoe import SystemIntegrated
-from scripts.data_transfer import DC_FinancialInput, DC_SystemInput, DC_FuelInput
+from scripts.lcoe_class import SystemIntegrated
+from scripts.loce_class_helper import DC_FinancialInput, DC_SystemInput, DC_FuelInput
 from scripts.gui_functions import *
+from scripts.parameter_study import InputHandlerLCOE
+from scripts.lcoe_simple import DataclassLCOEsimpleInput
 
 # Definition variables
 system_components = ["HiPowAR", "ICE", "SOFC"]
@@ -138,17 +134,17 @@ app.layout = dbc.Container([
                         dbc.Row(dbc.Col(
                             styling_input_card_generic(component='Fuel_NH3', header="NH3 Fuel Cost",
                                                        rowinputs=[
-                                                           {'par': 'cost_Eur_per_kWh', 'title': "NH3 cost [€/kWh]"},
-                                                           {'par': 'costIncrease_percent_per_year', 'title': "NH3 cost "
-                                                                                                             "increase ["
-                                                                                                             "%/yr]"}]),
+                                                           {'par': 'fuel_cost_Eur_per_kWh',
+                                                            'title': "NH3 cost [€/kWh]"},
+                                                           {'par': 'fuel_costIncrease_percent_per_year',
+                                                            'title': "NH3 cost increase [%/yr]"}]),
                         )),
 
                         dbc.Row(dbc.Col(
                             styling_input_card_generic(component='Fuel_NG', header="NG Fuel Cost",
                                                        rowinputs=[
-                                                           {'par': 'cost_Eur_per_kWh', 'title': "NG cost [€/kWh]"},
-                                                           {'par': 'costIncrease_percent_per_year',
+                                                           {'par': 'fuel_cost_Eur_per_kWh', 'title': "NG cost [€/kWh]"},
+                                                           {'par': 'fuel_costIncrease_percent_per_year',
                                                             'title': "NG cost increase [%/yr]"}])
                         ))
 
@@ -177,16 +173,18 @@ app.layout = dbc.Container([
             dbc.AccordionItem([], title="About"),
             dbc.AccordionItem([
                 dbc.Row([dbc.Col(dbc.Button("Fill Randomly", id="bt_randomfill"), width=2),
-                         dbc.Col(dbc.Button("Initial Data Collect", id="bt_collect"), width=2),
+                         dbc.Col(dbc.Button("Build: Initial Data Collect", id="bt_collect"), width=2),
+                         dbc.Col(dbc.Button("Build: Random Fill Fields", id="bt_fill"), width=2),
                          dbc.Col(dbc.Button("Update Data Collect", id="bt_update_collect"), width=2),
                          dbc.Col(dbc.Button("Load Input", id="bt_load_Input"), width=2),
-                         dbc.Col(dbc.Button("Debug Print", id="bt_debugprint"), width=2)
+                         dbc.Col(dbc.Button("Debug Print", id="bt_debugprint"), width=2),
+                         dbc.Col(dbc.Button("Init", id="bt_init"), width=2)
                          ]),
                 dbc.Row([html.Pre("...", id="flag_nominal_calculation_done")]),
                 dbc.Row([html.Pre("...", id="flag_sensitivity_calculation_done")]),
-                dbc.Row([html.Pre("...", id="txt_out1")]),  # ToDo: Tidy up
-                dbc.Row([html.Pre("...", id="txt_out2")]),
-                dbc.Row([html.Pre("...", id="txt_out3")]),
+                dbc.Row([html.Pre("...", id="txt_build1")]),  # ToDo: Tidy up
+                dbc.Row([html.Pre("...", id="txt_build2")]),
+                dbc.Row([html.Pre("...", id="txt_dev_button_init")]),
                 dbc.Row([html.Pre("...", id="txt_out4")]),
                 dbc.Row([html.Pre("...", id="txt_out7")])
             ], title="Developer"),
@@ -633,33 +631,37 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
 
 
 @app.callback(
-    Output("txt_out1", "children"),
+    Output("txt_build1", "children"),
     Input("bt_collect", "n_clicks"),
     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
     prevent_initial_call=True)
-def cbf_dev_button_initialCollectInput(*args):
+def cbf_dev_button_build_initialCollectInput(*args):
     """
-    Creates new dataframe / excel table with all inputfields of types defined in callback above.
-    Create DataFrame with all input fields and fill with available input
+    Creates new DataFrame / excel table with all inputfields of types defined in callback above.
     """
-    df = pd.DataFrame(columns=["component", "par", "parInfo"])
-    for dct in ctx.states_list[0]:
-        data = {'component': dct["id"]["component"], 'par': dct["id"]["par"], 'parInfo': dct["id"]["parInfo"]}
-        try:
-            data.update({0: dct["value"]})
-        except KeyError:
-            data.update({0: None})
-        new_row = pd.Series(data)
-        df = pd.concat([df, new_row.to_frame().T], ignore_index=True)
-
+    df = build_initial_collect(ctx.states_list[0])
     df.to_pickle("input4.pkl")
     df.to_excel("input4.xlsx")
 
     return "ok"
 
 
+# # INFO: Function is commented, because there would be an output overlap. Decomment when building GUI!
+# @app.callback(
+#     Output({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
+#     Input("bt_fill", "n_clicks"),
+#     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
+#     prevent_initial_call=True)
+# def cbf_dev_button_build_randomFillFields(*args):
+#     """
+#     Fill all fields of type 'input' with random numbers
+#     """
+#     returnvalues = build_randomfill_input_fields(ctx.states_list[0])
+#
+#     return returnvalues
+
 @app.callback(
-    Output("txt_out2", "children"), Input("bt_update_collect", "n_clicks"),
+    Output("txt_build2", "children"), Input("bt_update_collect", "n_clicks"),
     State({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
     State({'type': 'input_SOFC', 'index': ALL}, 'value'),
     State({'type': 'input_ICE', 'index': ALL}, 'value'),
@@ -667,11 +669,11 @@ def cbf_dev_button_initialCollectInput(*args):
     State({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
     State({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
     prevent_initial_call=True)
-def cbf_dev_button_updateCollectInput(inp, *args):
+def cbf_dev_button_build_updateCollectInput(inp, *args):
     """
     Intention: Save new parameterset to table.
 
-    ToDo: Implement correctly
+    ToDo: Implement correctly!
     """
     df = pd.read_pickle("input4.pkl")
     for key, val in ctx.states.items():
@@ -679,6 +681,27 @@ def cbf_dev_button_updateCollectInput(inp, *args):
     df.to_pickle("input4_upd.pkl")
     df.to_excel("input4_upd.xlsx")
     return "ok"
+
+
+@app.callback(
+    Output("txt_dev_button_init", "children"), Input("bt_init", "n_clicks"),
+    State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
+    prevent_initial_call=True)
+def cbf_dev_button_init(inp, *args):
+    """
+    Debug parameter study
+    """
+    # Collect data of input fields in dataframe
+    df = read_input_fields(ctx.states_list[0])
+    # Reduce to one system and one fuel
+    df = df.loc[(df.component == "SOFC") |
+                (df.component == "Financials") |
+                (df.component == "Fuel_NH3"), :]
+
+    # Init Input Handler
+    hipowar_NH3 = InputHandlerLCOE(df=df, dc=DataclassLCOEsimpleInput,
+                                   dict_additionalNames={"name": "SOFC", "fuel_name": "NH3"})
+    hipowar_NH3.create_input_sets(mode="all_minmax")
 
 
 if __name__ == "__main__":

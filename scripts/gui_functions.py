@@ -1,5 +1,7 @@
 # App styling and input functions for recurring use
 # ----------------------------------------------------------------------------------------------------------------------
+import random
+
 import dash_bootstrap_components as dbc
 import pandas as pd
 
@@ -152,32 +154,49 @@ def styling_generic_dropdown(id_name: str, label: str, elements: list) -> dbc.Dr
     )
     return dropdown
 
-def read_input_fields(state_selection: list) -> pd.DataFrame:
-    """
-    state_selection: Callback State ctx.states_list[:], can be list or list of lists
 
-    Function reads state_selection and writes data into DataFrame
+def build_randomfill_input_fields(output: list) -> list:
     """
-    # For multiple states in callback, 'state_selection' is list of lists [[state1],[state2],...]
-    # If only one state is passed, wrap it into list:
-    if type(state_selection[0]) is not list:
-        state_selection = [state_selection]
+    Description:
+    output: (Portion of) ctx.output_lists of apropriate callback
 
-    #  Collect data of input fields in dataframe
-    df = pd.DataFrame()
-    for state_list in state_selection:
-        for el in state_list:
-            el_dict = {'component': el['id']['component'],
-                       'par': el['id']['par'],
-                       'parInfo': el['id']['parInfo']}
+    Function for filling input fields with random data. For each element inside "output"
+    (list of lists or single list)...
+    """
+    # For multiple outputs in callback, 'output' is list of lists [[output1],[output2],...]
+    # If only one output is handed over, it will be wrapped in additional list
+    if type(output[0]) is not list:
+        output = [output]
+
+    return_lists = []
+    for li in output:
+        return_list = []
+        for _ in li:
             try:
-                el_dict.update({'value': el['value']})
-            except KeyError:
-                el_dict.update({'value': None})
+                return_list.append(random.randrange(0, 100))
+            except AttributeError:
+                return_list.append(None)
+            except ValueError:
+                return_list.append(None)
+        return_lists.append(return_list)
+    return return_lists
 
-            new_row = pd.Series(el_dict)
-            df = pd.concat([df, new_row.to_frame().T], ignore_index=True)
 
+def build_initial_collect(state_list: list):
+    """
+    Build function to create initial excel input table
+    Input: One list from ctx.states_list, e.g. ctx.states_list[0]
+    """
+    df = pd.DataFrame(columns=["component", "par", "parInfo"])
+
+    for dct in state_list:
+        data = {'component': dct["id"]["component"], 'par': dct["id"]["par"], 'parInfo': dct["id"]["parInfo"]}
+        try:
+            data.update({0: dct["value"]})
+        except KeyError:
+            data.update({0: None})
+        new_row = pd.Series(data)
+        df = pd.concat([df, new_row.to_frame().T], ignore_index=True)
     return df
 
 
@@ -212,3 +231,32 @@ def fill_input_fields(input_str: str, df: pd.DataFrame, output: list) -> list:
                 return_list.append(None)
         return_lists.append(return_list)
     return return_lists
+
+
+def read_input_fields(state_selection: list) -> pd.DataFrame:
+    """
+    state_selection: Callback State ctx.states_list[:], can be list or list of lists
+
+    Function reads state_selection and writes data into DataFrame
+    """
+    # For multiple states in callback, 'state_selection' is list of lists [[state1],[state2],...]
+    # If only one state is passed, wrap it into list:
+    if type(state_selection[0]) is not list:
+        state_selection = [state_selection]
+
+    #  Collect data of input fields in dataframe
+    df = pd.DataFrame()
+    for state_list in state_selection:
+        for el in state_list:
+            el_dict = {'component': el['id']['component'],
+                       'par': el['id']['par'],
+                       'parInfo': el['id']['parInfo']}
+            try:
+                el_dict.update({'value': el['value']})
+            except KeyError:
+                el_dict.update({'value': None})
+
+            new_row = pd.Series(el_dict)
+            df = pd.concat([df, new_row.to_frame().T], ignore_index=True)
+
+    return df
