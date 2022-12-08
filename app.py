@@ -80,7 +80,7 @@ app.layout = dbc.Container([
     dcc.Store(id='storage', storage_type='memory'),
 
     # Header Row with title & logos
-    dbc.Row([dbc.Col(html.H1("HiPowAR LCOE Tool"), width=12,xl=3),
+    dbc.Row([dbc.Col(html.H1("HiPowAR LCOE Tool"), width=12, xl=3),
              dbc.Col(html.Img(src='data:image/png;base64,{}'.format(hipowar_base64), width=100), width=12, xl=3),
              dbc.Col(html.Img(src='data:image/png;base64,{}'.format(eu_base64), width=300), width=12, xl=3),
              dbc.Col(html.Img(src='data:image/png;base64,{}'.format(zbt_base64), width=250), width=12, xl=3)]),
@@ -125,8 +125,8 @@ app.layout = dbc.Container([
                                 width=12, xl=8)]),
                     html.Hr(),
                     dbc.Row([
-                        dbc.Col(dbc.Button("Run Nominal", id="bt_run_nominal",size="sm"), width=3),
-                        dbc.Col(dbc.Button("Run Study", id="bt_run_study",size="sm"), width=3)
+                        dbc.Col(dbc.Button("Run Nominal", id="bt_run_nominal", size="sm"), width=3),
+                        dbc.Col(dbc.Button("Run Study", id="bt_run_study", size="sm"), width=3)
                     ])
                 ]),
                 dbc.AccordionItem(title="Energy Conversion System Settings", children=[
@@ -147,7 +147,8 @@ app.layout = dbc.Container([
                     dbc.Row([
                         dbc.Col(styling_input_card_generic(component="Financials", header="Financials",
                                                            rowinputs=[
-                                                               {'par': "discountrate_perc", 'title': "Discount Rate [%]"},
+                                                               {'par': "discountrate_perc",
+                                                                'title': "Discount Rate [%]"},
                                                                {'par': "lifetime_yr", 'title': "Lifetime [y]"},
                                                                {'par': "operatinghoursyearly",
                                                                 'title': "Operating hours [hr/yr]"}]
@@ -165,7 +166,8 @@ app.layout = dbc.Container([
                             dbc.Row(dbc.Col(
                                 styling_input_card_generic(component='Fuel_NG', header="NG Fuel Cost",
                                                            rowinputs=[
-                                                               {'par': 'fuel_cost_Eur_per_kWh', 'title': "NG cost [€/kWh]"},
+                                                               {'par': 'fuel_cost_Eur_per_kWh', 'title': "NG cost ["
+                                                                                                         "€/kWh]"},
                                                                {'par': 'fuel_costIncrease_percent_per_year',
                                                                 'title': "NG cost increase [%/yr]"}]), width=12
                             ))
@@ -195,9 +197,9 @@ app.layout = dbc.Container([
             dbc.Accordion([
                 dbc.AccordionItem(title='Nominal Results', children=[
                     dbc.Row(dbc.Col(
-                        dbc.Table(id="table_lcoe_nominal", bordered=True)
+                        dbc.Table(id="table_lcoe_nominal",striped=False, bordered=True)
                     ))
-                ],),
+                ], ),
                 dbc.AccordionItem(title="LCOE Study Results", children=[
                     dbc.Row([
                         dbc.Col([
@@ -218,7 +220,6 @@ app.layout = dbc.Container([
     ])
 
 ], fluid=True)
-
 
 
 # Callback Functions, app specific
@@ -349,22 +350,17 @@ def cbf_quickstart_button_runNominalLCOE(*args):
     # ------------------------------------------------------------------------------------------------------------------
     data = multisystem_calculation(df, system_components, ["Fuel_NH3", "Fuel_NG"], "nominal")
 
-    # 3. Read results and write into table
+    # 3. Read results and write into table (could be reworked)
     # ------------------------------------------------------------------------------------------------------------------
-    list_systemname = []
-    list_lcoeval = []
+    df_table = pd.DataFrame(columns=["LCOE [€/kWh]"])
+    df_table.loc["System Name", "LCOE [€/kWh]"] = "LCOE [€/kWh]"
     for key, system in data.items():
-        list_systemname.append(key)
-        list_lcoeval.append(system.df_results.loc["nominal", "LCOE"])
+        df_table.loc[key, "LCOE [€/kWh]"] = round(system.df_results.loc["nominal", "LCOE"],3)
+    df_table = df_table.reset_index(level=0)
 
-    table_header = [html.Thead(html.Tr([html.Th("System Name"), html.Th("LCOE [€/kWh")]))]
+    table = dbc.Table.from_dataframe(df_table, bordered=True, hover=True)
 
-    rows = [html.Tr([html.Td(n), html.Td(v)]) for n, v in zip(list_systemname, list_lcoeval)]
-
-    table_body = [html.Tbody(rows)]
-    table = table_header + table_body  # ToDo Why the heading is not appearing?
-
-    return table
+    return table.children
 
 
 @app.callback(
@@ -562,6 +558,7 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
     )
 
     return fig
+
 
 @app.callback(
     Output("txt_build1", "children"),
