@@ -296,8 +296,17 @@ def cbf_quickstart_select_NGfuel_preset(*inputs):
     prevent_initial_call=True)
 def cbf_quickstart_button_runNominalLCOE(*args):
     """
-    Returns:    - Datetime to 'flag_sensitivity_calculation_done' textfield.
-                - system-objects, results included, to storage(s)
+    Input:
+        Button Click
+
+    Description:
+        1. Collect nominal input variables from data fields
+        2. Initialize systems, prepare input-sets, perform calculations
+        3. Read results and write into table
+
+    Output:
+        - Datetime to 'flag_nominal_calculation_done' textfield.
+        - Single LCOE value per system to table
     """
     # 1. Collect nominal input variables from data fields
     # ------------------------------------------------------------------------------------------------------------------
@@ -308,7 +317,7 @@ def cbf_quickstart_button_runNominalLCOE(*args):
     # ------------------------------------------------------------------------------------------------------------------
     data = multisystem_calculation(df, system_components, ["Fuel_NH3", "Fuel_NG"], "nominal")
 
-    # Read results and write into Table
+    # 3. Read results and write into table
     # ------------------------------------------------------------------------------------------------------------------
     list_systemname = []
     list_lcoeval = []
@@ -316,7 +325,6 @@ def cbf_quickstart_button_runNominalLCOE(*args):
         list_systemname.append(key)
         list_lcoeval.append(system.df_results.loc["nominal", "LCOE"])
 
-    # Format table
     table_header = [html.Thead(html.Tr([html.Th("System Name"), html.Th("LCOE [€/kWh")]))]
 
     rows = [html.Tr([html.Td(n), html.Td(v)]) for n, v in zip(list_systemname, list_lcoeval)]
@@ -335,19 +343,28 @@ def cbf_quickstart_button_runNominalLCOE(*args):
     prevent_initial_call=True)
 def cbf_quickstart_button_runSensitivityLCOE(*args):
     """
-    Returns:    - Datetime to 'flag_sensitivity_calculation_done' textfield.
-                - system-objects, results included, to storage(s)
+    Input:
+        Button Click
+
+    Description:
+        1. Collect all input variables from data fields
+        2. Initialize systems, prepare input-sets, perform calculations
+        3. Store data in dcc.storage object
+
+    Output:
+        - Datetime to 'flag_sensitivity_calculation_done' textfield.
+        - system-objects, results included, to storage(s)
     """
     # 1. Collect all input variables from data fields
     # ------------------------------------------------------------------------------------------------------------------
     # Collect data of input fields in dataframe
     df = read_input_fields(ctx.states_list[0])
 
-    # 2. Initialize systems, prepare input-sets, perform calculations, store data
+    # 2. Initialize systems, prepare input-sets, perform calculations
     # ------------------------------------------------------------------------------------------------------------------
     systems = multisystem_calculation(df, system_components, ["Fuel_NH3", "Fuel_NG"], "all_minmax")
 
-    # 5. Store data in dcc.storage object
+    # 3. Store data in dcc.storage object
     # -----------------------------------------------------------------------------------------------------------------
     # Create json file:
     data = store_data(systems)
@@ -360,6 +377,9 @@ def cbf_quickstart_button_runSensitivityLCOE(*args):
     State('storage', 'data'),
     prevent_initial_call=True)
 def cbf_lcoeStudyResults_plot_NH3_update(inp, state):
+    """
+    Todo
+    """
     # Read results from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
@@ -393,6 +413,9 @@ def cbf_lcoeStudyResults_plot_NH3_update(inp, state):
     State('storage', 'data'),
     prevent_initial_call=True)
 def cbf_lcoeStudyResults_plot_NG_update(inp, state):
+    """
+    Todo
+    """
     # Read from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
@@ -427,6 +450,7 @@ def cbf_lcoeStudyResults_plot_NG_update(inp, state):
     prevent_initial_call=True)
 def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
     """
+    Todo
     Analysis of influence of single parameter
     ------------------------------------
     (Search in table)
@@ -500,58 +524,12 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
 
         fig.add_hline(y=result_df.loc["nominal", "LCOE"], line_color=colordict[system])
 
-        # # Create second plot with only non-system inherent parameters, identified by not "p".
-        #
-        # tb = systems[system].lcoe_table.copy()
-        # # result_df = pd.DataFrame(columns=["modpar"])
-        #
-        # variation_pars = tb.columns.drop(["p_size_kW", "LCOE"])
-        # variation_pars = variation_pars.drop([x for x in variation_pars if x[0] == "p"])
-        #
-        # result_df = pd.DataFrame(columns=tb.columns)
-        # result_df.loc["nominal"] = tb.loc["nominal"]
-        #
-        # for modpar in variation_pars:
-        #     # Create query string:
-        #     qs = ""
-        #     cond = [f"{parm} == {result_df.loc['nominal', parm]}" for parm in variation_pars.drop(modpar)]
-        #     for c in cond:
-        #         qs = qs + c + " & "
-        #     qs = qs[:-3]
-        #     tbred = tb.query(qs)
-        #     rw = tbred.nsmallest(1, modpar)
-        #     rw["modpar"] = modpar
-        #     result_df = pd.concat([result_df, rw])
-        #     rw = tbred.nlargest(1, modpar)
-        #     rw["modpar"] = modpar
-        #     result_df = pd.concat([result_df, rw])
-        #
-        # result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]
-        #
-        # for name, group in result_df.groupby('modpar'):
-        #     trace = go.Box()
-        #     trace.name = system
-        #     trace.x = [name] * 3
-        #     trace.y = [result_df.loc["nominal", "LCOE"],
-        #                group["LCOE"].max(),
-        #                group["LCOE"].min()]
-        #     trace.marker["color"] = colordict[system]
-        #     # trace.error_y = dict(
-        #     #    type='data',
-        #     #    symmetric=False,
-        #     #    array=[group["diff"].max()],
-        #     #    arrayminus=[abs(group["diff"].min())])
-        #     fig.add_trace(trace, row=1, col=2, )
-        #
-        # fig.add_hline(y=result_df.loc["nominal", "LCOE"], line_color=colordict[system])
-
     fig.update_layout(
         showlegend=False,
         boxmode='group'  # group together boxes of the different traces for each value of x
     )
 
     return fig
-
 
 @app.callback(
     Output("txt_build1", "children"),
