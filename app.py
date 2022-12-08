@@ -63,6 +63,11 @@ cache.clear()
 # 2. App layout
 # ----------------------------------------------------------------------------------------------------------------------
 # Info: as proposed by dash bootstrap component guide, everything is ordered in dbc.Row's, containing dbc.Col's
+# https://dash-bootstrap-components.opensource.faculty.ai/docs/components/layout/
+# "The layout of your app should be built as a series of rows of columns.
+#  The Col component should always be used as an immediate child of Row and is a wrapper for your content
+#  that ensures it takes up the correct amount of horizontal space."
+
 
 app.layout = dbc.Container([
     # Storage definition
@@ -81,113 +86,129 @@ app.layout = dbc.Container([
     html.Hr(),
 
     # Accordeon-like User Interface and result presentation
-    dbc.Row([dbc.Col([
-        dbc.Accordion([
-            dbc.AccordionItem(title="Preset Selection", children=[
-                # Menu with different drop down menus for preset selections, 'Calculate' Button
-                # Dropdown System Preset Selection
-                dbc.Row([
-                    dbc.Col(styling_generic_dropdown(id_name="dd_preset", label="System Presets",
-                                                     elements=df_input["Systems"].columns[4:]), width=2),
-                    dbc.Col(html.P(df_input["Systems"].columns[4], id="txt_Preset_Selection"), width=8)]),
-                # Dropdown Financial Preset Selection
-                dbc.Row([
-                    dbc.Col(styling_generic_dropdown(id_name="dd_Financial", label="Financial Presets",
-                                                     elements=df_input["Financial"].columns[4:]), width=2),
-                    dbc.Col(html.P(df_input["Financial"].columns[4], id="txt_Financial_Selection"), width=8)]),
-                # Dropdown NH3 Fuel Cost Preset Selection
-                dbc.Row([
-                    dbc.Col(styling_generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3 Cost Selector",
-                                                     elements=df_input["Fuel_NH3"].columns[4:]), width=2),
-                    dbc.Col(html.P(df_input["Fuel_NH3"].columns[4], id="txt_NH3_fuel_cost_Preset_Selection"))]),
-                # Dropdown NG Fuel Cost Preset Selection
-                dbc.Row([
-                    dbc.Col(styling_generic_dropdown(id_name="dd_NG_fuel_cost", label="NG Cost Selector",
-                                                     elements=df_input["Fuel_NG"].columns[4:]), width=2),
-                    dbc.Col(html.P(df_input["Fuel_NG"].columns[4], id="txt_NG_fuel_cost_Preset_Selection"))]),
-                html.Hr(),
-                dbc.Row([
-                    dbc.Col(dbc.Button("Run Nominal", id="bt_run_nominal"), width=2),
-                    dbc.Col(dbc.Button("Run Study", id="bt_run_study"), width=2)
-                ])
-            ]),
-            dbc.AccordionItem(title="Energy Conversion System Settings", children=[
-                # Menu with input cards for each energy conversion system (HiPowAR, SOFC,ICE)
-                dbc.Row([
-                    dbc.Col(styling_input_card_component(component="HiPowAR", header="HiPowAR"), md=4),
-                    dbc.Col(styling_input_card_component("SOFC", header="SOFC",
-                                                         add_rows=[{"par": "stacklifetime_hr",
-                                                                    "title": "Stack Lifetime [hr]"},
-                                                                   {"par": "stackexchangecost_percCapex",
-                                                                    'title': "Stack Exchange Cost [% Capex]"}]), md=4),
-                    dbc.Col(styling_input_card_component(component="ICE", header="Internal Combustion Eng."), md=4)
-                ], )
-            ], ),
-            dbc.AccordionItem(title="Environmental Settings", children=[
-                dbc.Row([
-                    dbc.Col(styling_input_card_generic(component="Financials", header="Financials",
-                                                       rowinputs=[
-                                                           {'par': "discountrate_perc", 'title': "Discount Rate [%]"},
-                                                           {'par': "lifetime_yr", 'title': "Lifetime [y]"},
-                                                           {'par': "operatinghoursyearly",
-                                                            'title': "Operating hours [hr/yr]"}]
-                                                       ), md=4),
-                    dbc.Col([
-                        dbc.Row(dbc.Col(
-                            styling_input_card_generic(component='Fuel_NH3', header="NH3 Fuel Cost",
-                                                       rowinputs=[
-                                                           {'par': 'fuel_cost_Eur_per_kWh',
-                                                            'title': "NH3 cost [€/kWh]"},
-                                                           {'par': 'fuel_costIncrease_percent_per_year',
-                                                            'title': "NH3 cost increase [%/yr]"}]),
-                        )),
 
-                        dbc.Row(dbc.Col(
-                            styling_input_card_generic(component='Fuel_NG', header="NG Fuel Cost",
-                                                       rowinputs=[
-                                                           {'par': 'fuel_cost_Eur_per_kWh', 'title': "NG cost [€/kWh]"},
-                                                           {'par': 'fuel_costIncrease_percent_per_year',
-                                                            'title': "NG cost increase [%/yr]"}])
-                        ))
+    # Main
+    dbc.Row([
+        # Setting Column
+        dbc.Col([
+            dbc.Accordion([
+                dbc.AccordionItem(title="Preset Selection", children=[
+                    # Menu with different drop down menus for preset selections, 'Calculate' Button
+                    # Dropdown System Preset Selection
+                    dbc.Row([
+                        dbc.Col(styling_generic_dropdown(id_name="dd_preset", label="System Presets",
+                                                         elements=df_input["Systems"].columns[4:]), width=2),
+                        dbc.Col(html.P(df_input["Systems"].columns[4], id="txt_Preset_Selection"), width=8)]),
+                    # Dropdown Financial Preset Selection
+                    dbc.Row([
+                        dbc.Col(styling_generic_dropdown(id_name="dd_Financial", label="Financial Presets",
+                                                         elements=df_input["Financial"].columns[4:]), width=2),
+                        dbc.Col(html.P(df_input["Financial"].columns[4], id="txt_Financial_Selection"), width=8)]),
+                    # Dropdown NH3 Fuel Cost Preset Selection
+                    dbc.Row([
+                        dbc.Col(styling_generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3 Cost Selector",
+                                                         elements=df_input["Fuel_NH3"].columns[4:]), width=2),
+                        dbc.Col(html.P(df_input["Fuel_NH3"].columns[4], id="txt_NH3_fuel_cost_Preset_Selection"))]),
+                    # Dropdown NG Fuel Cost Preset Selection
+                    dbc.Row([
+                        dbc.Col(styling_generic_dropdown(id_name="dd_NG_fuel_cost", label="NG Cost Selector",
+                                                         elements=df_input["Fuel_NG"].columns[4:]), width=2),
+                        dbc.Col(html.P(df_input["Fuel_NG"].columns[4], id="txt_NG_fuel_cost_Preset_Selection"))]),
+                    html.Hr(),
+                    dbc.Row([
+                        dbc.Col(dbc.Button("Run Nominal", id="bt_run_nominal"), width=2),
+                        dbc.Col(dbc.Button("Run Study", id="bt_run_study"), width=2)
+                    ])
+                ]),
+                dbc.AccordionItem(title="Energy Conversion System Settings", children=[
+                    # Menu with input cards for each energy conversion system (HiPowAR, SOFC,ICE)
+                    dbc.Row([
+                        dbc.Col(styling_input_card_component(component="HiPowAR", header="HiPowAR"), md=4),
+                        dbc.Col(styling_input_card_component("SOFC", header="SOFC",
+                                                             add_rows=[{"par": "stacklifetime_hr",
+                                                                        "title": "Stack Lifetime [hr]"},
+                                                                       {"par": "stackexchangecost_percCapex",
+                                                                        'title': "Stack Exchange Cost [% Capex]"}]), md=4),
+                        dbc.Col(styling_input_card_component(component="ICE", header="Internal Combustion Eng."), md=4)
+                    ], )
+                ], ),
+                dbc.AccordionItem(title="Environmental Settings", children=[
+                    dbc.Row([
+                        dbc.Col(styling_input_card_generic(component="Financials", header="Financials",
+                                                           rowinputs=[
+                                                               {'par': "discountrate_perc", 'title': "Discount Rate [%]"},
+                                                               {'par': "lifetime_yr", 'title': "Lifetime [y]"},
+                                                               {'par': "operatinghoursyearly",
+                                                                'title': "Operating hours [hr/yr]"}]
+                                                           ), md=4),
+                        dbc.Col([
+                            dbc.Row(dbc.Col(
+                                styling_input_card_generic(component='Fuel_NH3', header="NH3 Fuel Cost",
+                                                           rowinputs=[
+                                                               {'par': 'fuel_cost_Eur_per_kWh',
+                                                                'title': "NH3 cost [€/kWh]"},
+                                                               {'par': 'fuel_costIncrease_percent_per_year',
+                                                                'title': "NH3 cost increase [%/yr]"}]),
+                            )),
 
-                    ], md=4)
-                ])
-            ]),
-            dbc.AccordionItem(title='Nominal Results', children=[
-                dbc.Row(dbc.Col(
-                    dbc.Table(id="table_lcoe_nominal", bordered=True)
-                ))
-            ],),
-            dbc.AccordionItem(title="LCOE Study Results", children=[
-                dbc.Row([
-                    dbc.Col([
-                        dcc.Graph(id='graph_lcoe_multi_NH3')
-                    ]),
-                    dbc.Col([
-                        dcc.Graph(id='graph_lcoe_multi_NG')
-                    ])]),
-                html.Hr(),
-                dbc.Row([
-                    dbc.Col([
-                        dcc.Graph(id='lcoe-graph-sensitivity')])
-                ])
-            ], ),
-            dbc.AccordionItem(title="About", children=[]),
-            dbc.AccordionItem(title="Developer", children=[
-                dbc.Row([dbc.Col(dbc.Button("Build: Initial Data Collect", id="bt_collect"), width=2),
-                         dbc.Col(dbc.Button("Build: Random Fill Fields", id="bt_fill"), width=2),
-                         dbc.Col(dbc.Button("Work: Update Data Collect", id="bt_update_collect"), width=2),
-                         dbc.Col(dbc.Button("Debug: Init", id="bt_init"), width=2)
-                         ]),
-                dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done")]),
-                dbc.Row([html.Pre("Sensitivity Calculation Done:", id="flag_sensitivity_calculation_done")]),
-                dbc.Row([html.Pre("Build: Initial Collect Input", id="txt_build1")]),
-                dbc.Row([html.Pre("Build: Update Collect Input", id="txt_build2")]),
-                dbc.Row([html.Pre("Debug Calculation:", id="txt_dev_button_init")])
-            ]),
-        ], always_open=True)
-    ])])
+                            dbc.Row(dbc.Col(
+                                styling_input_card_generic(component='Fuel_NG', header="NG Fuel Cost",
+                                                           rowinputs=[
+                                                               {'par': 'fuel_cost_Eur_per_kWh', 'title': "NG cost [€/kWh]"},
+                                                               {'par': 'fuel_costIncrease_percent_per_year',
+                                                                'title': "NG cost increase [%/yr]"}])
+                            ))
+
+                        ], md=4)
+                    ])
+                ]),
+
+                dbc.AccordionItem(title="About", children=[]),
+                dbc.AccordionItem(title="Developer", children=[
+                    dbc.Row([dbc.Col(dbc.Button("Build: Initial Data Collect", id="bt_collect"), width=2),
+                             dbc.Col(dbc.Button("Build: Random Fill Fields", id="bt_fill"), width=2),
+                             dbc.Col(dbc.Button("Work: Update Data Collect", id="bt_update_collect"), width=2),
+                             dbc.Col(dbc.Button("Debug: Init", id="bt_init"), width=2)
+                             ]),
+                    dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done")]),
+                    dbc.Row([html.Pre("Sensitivity Calculation Done:", id="flag_sensitivity_calculation_done")]),
+                    dbc.Row([html.Pre("Build: Initial Collect Input", id="txt_build1")]),
+                    dbc.Row([html.Pre("Build: Update Collect Input", id="txt_build2")]),
+                    dbc.Row([html.Pre("Debug Calculation:", id="txt_dev_button_init")])
+                ]),
+            ], always_open=True)
+        ], width=12, xl=4),
+
+        # Visualization Column
+        dbc.Col([
+            dbc.Accordion([
+                dbc.AccordionItem(title='Nominal Results', children=[
+                    dbc.Row(dbc.Col(
+                        dbc.Table(id="table_lcoe_nominal", bordered=True)
+                    ))
+                ],),
+                dbc.AccordionItem(title="LCOE Study Results", children=[
+                    dbc.Row([
+                        dbc.Col([
+                            dcc.Graph(id='graph_lcoe_multi_NH3')
+                        ]),
+                        dbc.Col([
+                            dcc.Graph(id='graph_lcoe_multi_NG')
+                        ])]),
+                    html.Hr(),
+                    dbc.Row([
+                        dbc.Col([
+                            dcc.Graph(id='lcoe-graph-sensitivity')])
+                    ])
+                ], ),
+            ], always_open=True)
+        ], width=12, xl=8)
+
+    ])
+
 ], fluid=True)
+
+
 
 # Callback Functions, app specific
 # --------------------------------------------------------------
@@ -495,7 +516,7 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
                 qs = qs + c + " & "
             qs = qs[:-3]  # remove last  " & "
 
-            tbred = tb.query(qs)  # search for rows fullfilling query
+            tbred = tb.query(qs).copy()  # search for rows fullfilling query
             # In case modpar has no variation (e.g. fuel cost increase is set as [0,0,0], all values are the same.
             # Thus following rows could include "nominal" set again. This needs to be prevented.
             tbred.drop(index="nominal", inplace=True)
