@@ -67,6 +67,7 @@ cache.clear()
 # "The layout of your app should be built as a series of rows of columns.
 #  The Col component should always be used as an immediate child of Row and is a wrapper for your content
 #  that ensures it takes up the correct amount of horizontal space."
+#  https://getbootstrap.com/docs/5.0/utilities/spacing/
 
 
 app.layout = dbc.Container([
@@ -79,10 +80,10 @@ app.layout = dbc.Container([
     dcc.Store(id='storage', storage_type='memory'),
 
     # Header Row with title & logos
-    dbc.Row([dbc.Col(html.H1("HiPowAR LCOE Tool"), width=4),
-             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(hipowar_base64), width=100)),
-             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(eu_base64), width=300)),
-             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(zbt_base64), width=250))]),
+    dbc.Row([dbc.Col(html.H1("HiPowAR LCOE Tool"), width=12,xl=3),
+             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(hipowar_base64), width=100), width=12, xl=3),
+             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(eu_base64), width=300), width=12, xl=3),
+             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(zbt_base64), width=250), width=12, xl=3)]),
     html.Hr(),
 
     # Accordeon-like User Interface and result presentation
@@ -96,40 +97,50 @@ app.layout = dbc.Container([
                     # Menu with different drop down menus for preset selections, 'Calculate' Button
                     # Dropdown System Preset Selection
                     dbc.Row([
-                        dbc.Col(styling_generic_dropdown(id_name="dd_preset", label="System Presets",
-                                                         elements=df_input["Systems"].columns[4:]), width=2),
-                        dbc.Col(html.P(df_input["Systems"].columns[4], id="txt_Preset_Selection"), width=8)]),
+                        dbc.Col(styling_generic_dropdown(id_name="dd_preset", label="System",
+                                                         elements=df_input["Systems"].columns[4:]),
+                                width=6, xl=4),
+                        dbc.Col(html.P(df_input["Systems"].columns[4], id="txt_Preset_Selection"),
+                                width=12, xl=8)]),
                     # Dropdown Financial Preset Selection
                     dbc.Row([
-                        dbc.Col(styling_generic_dropdown(id_name="dd_Financial", label="Financial Presets",
-                                                         elements=df_input["Financial"].columns[4:]), width=2),
-                        dbc.Col(html.P(df_input["Financial"].columns[4], id="txt_Financial_Selection"), width=8)]),
+                        dbc.Col(styling_generic_dropdown(id_name="dd_Financial", label="Financial",
+                                                         elements=df_input["Financial"].columns[4:]),
+                                width=6, xl=4),
+                        dbc.Col(html.P(df_input["Financial"].columns[4], id="txt_Financial_Selection"),
+                                width=12, xl=8)]),
                     # Dropdown NH3 Fuel Cost Preset Selection
                     dbc.Row([
-                        dbc.Col(styling_generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3 Cost Selector",
-                                                         elements=df_input["Fuel_NH3"].columns[4:]), width=2),
-                        dbc.Col(html.P(df_input["Fuel_NH3"].columns[4], id="txt_NH3_fuel_cost_Preset_Selection"))]),
+                        dbc.Col(styling_generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3 Cost",
+                                                         elements=df_input["Fuel_NH3"].columns[4:]),
+                                width=6, xl=4),
+                        dbc.Col(html.P(df_input["Fuel_NH3"].columns[4], id="txt_NH3_fuel_cost_Preset_Selection"),
+                                width=12, xl=8)]),
                     # Dropdown NG Fuel Cost Preset Selection
                     dbc.Row([
-                        dbc.Col(styling_generic_dropdown(id_name="dd_NG_fuel_cost", label="NG Cost Selector",
-                                                         elements=df_input["Fuel_NG"].columns[4:]), width=2),
-                        dbc.Col(html.P(df_input["Fuel_NG"].columns[4], id="txt_NG_fuel_cost_Preset_Selection"))]),
+                        dbc.Col(styling_generic_dropdown(id_name="dd_NG_fuel_cost", label="NG",
+                                                         elements=df_input["Fuel_NG"].columns[4:]),
+                                width=6, xl=4),
+                        dbc.Col(html.P(df_input["Fuel_NG"].columns[4], id="txt_NG_fuel_cost_Preset_Selection"),
+                                width=12, xl=8)]),
                     html.Hr(),
                     dbc.Row([
-                        dbc.Col(dbc.Button("Run Nominal", id="bt_run_nominal"), width=2),
-                        dbc.Col(dbc.Button("Run Study", id="bt_run_study"), width=2)
+                        dbc.Col(dbc.Button("Run Nominal", id="bt_run_nominal",size="sm"), width=3),
+                        dbc.Col(dbc.Button("Run Study", id="bt_run_study",size="sm"), width=3)
                     ])
                 ]),
                 dbc.AccordionItem(title="Energy Conversion System Settings", children=[
                     # Menu with input cards for each energy conversion system (HiPowAR, SOFC,ICE)
                     dbc.Row([
-                        dbc.Col(styling_input_card_component(component="HiPowAR", header="HiPowAR"), md=4),
+                        dbc.Col(styling_input_card_component(component="HiPowAR", header="HiPowAR"), width=12),
                         dbc.Col(styling_input_card_component("SOFC", header="SOFC",
                                                              add_rows=[{"par": "stacklifetime_hr",
                                                                         "title": "Stack Lifetime [hr]"},
                                                                        {"par": "stackexchangecost_percCapex",
-                                                                        'title': "Stack Exchange Cost [% Capex]"}]), md=4),
-                        dbc.Col(styling_input_card_component(component="ICE", header="Internal Combustion Eng."), md=4)
+                                                                        'title': "Stack Exchange Cost [% Capex]"}]),
+                                width=12),
+                        dbc.Col(styling_input_card_component(component="ICE", header="Internal Combustion Eng."),
+                                width=12)
                     ], )
                 ], ),
                 dbc.AccordionItem(title="Environmental Settings", children=[
@@ -140,7 +151,7 @@ app.layout = dbc.Container([
                                                                {'par': "lifetime_yr", 'title': "Lifetime [y]"},
                                                                {'par': "operatinghoursyearly",
                                                                 'title': "Operating hours [hr/yr]"}]
-                                                           ), md=4),
+                                                           ), width=12),
                         dbc.Col([
                             dbc.Row(dbc.Col(
                                 styling_input_card_generic(component='Fuel_NH3', header="NH3 Fuel Cost",
@@ -148,7 +159,7 @@ app.layout = dbc.Container([
                                                                {'par': 'fuel_cost_Eur_per_kWh',
                                                                 'title': "NH3 cost [€/kWh]"},
                                                                {'par': 'fuel_costIncrease_percent_per_year',
-                                                                'title': "NH3 cost increase [%/yr]"}]),
+                                                                'title': "NH3 cost increase [%/yr]"}]), width=12,
                             )),
 
                             dbc.Row(dbc.Col(
@@ -156,10 +167,10 @@ app.layout = dbc.Container([
                                                            rowinputs=[
                                                                {'par': 'fuel_cost_Eur_per_kWh', 'title': "NG cost [€/kWh]"},
                                                                {'par': 'fuel_costIncrease_percent_per_year',
-                                                                'title': "NG cost increase [%/yr]"}])
+                                                                'title': "NG cost increase [%/yr]"}]), width=12
                             ))
 
-                        ], md=4)
+                        ])
                     ])
                 ]),
 
