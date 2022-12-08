@@ -2,7 +2,7 @@
 import pandas as pd
 from statistics import median
 from itertools import product
-from scripts.data_transfer import DC_FinancialInput, DC_SystemInput, DC_FuelInput
+from scripts.loce_class_helper import DC_FinancialInput, DC_SystemInput, DC_FuelInput
 
 #
 # class System:
@@ -12,7 +12,6 @@ from scripts.data_transfer import DC_FinancialInput, DC_SystemInput, DC_FuelInpu
 #     Provides pure LCOE calculation.
 #     Child classes have different ways provide input data for calculation.
 #     """
-
 
 class SystemIntegrated:
     """

@@ -1,5 +1,7 @@
 # App styling and input functions for recurring use
 # ----------------------------------------------------------------------------------------------------------------------
+import random
+
 import dash_bootstrap_components as dbc
 import pandas as pd
 
@@ -152,6 +154,86 @@ def styling_generic_dropdown(id_name: str, label: str, elements: list) -> dbc.Dr
     )
     return dropdown
 
+
+def build_randomfill_input_fields(output: list) -> list:
+    """
+    Description:
+    output: (Portion of) ctx.output_lists of apropriate callback
+
+    Function for filling input fields with random data. For each element inside "output"
+    (list of lists or single list)...
+    """
+    # For multiple outputs in callback, 'output' is list of lists [[output1],[output2],...]
+    # If only one output is handed over, it will be wrapped in additional list
+    if type(output[0]) is not list:
+        output = [output]
+
+    return_lists = []
+    for li in output:
+        return_list = []
+        for _ in li:
+            try:
+                return_list.append(random.randrange(0, 100))
+            except AttributeError:
+                return_list.append(None)
+            except ValueError:
+                return_list.append(None)
+        return_lists.append(return_list)
+    return return_lists
+
+
+def build_initial_collect(state_list: list):
+    """
+    Build function to create initial excel input table
+    Input: One list from ctx.states_list, e.g. ctx.states_list[0]
+    """
+    df = pd.DataFrame(columns=["component", "par", "parInfo"])
+
+    for dct in state_list:
+        data = {'component': dct["id"]["component"], 'par': dct["id"]["par"], 'parInfo': dct["id"]["parInfo"]}
+        try:
+            data.update({0: dct["value"]})
+        except KeyError:
+            data.update({0: None})
+        new_row = pd.Series(data)
+        df = pd.concat([df, new_row.to_frame().T], ignore_index=True)
+    return df
+
+
+def fill_input_fields(input_str: str, df: pd.DataFrame, output: list) -> list:
+    """
+    Input:
+        input_str: Preset name, selected by dropdown menu
+        df: Input data table (Excel definition file)
+        output: (Portion of) ctx.output_lists of apropriate callback
+
+    Definition:
+        Function for filling input fields based on preset dropdown menu selection. For each element inside "output"
+        (list of lists or single list), appropriate data (component, par, parInfo) from df will be returned.
+    """
+    # For multiple outputs in callback, 'output' is list of lists [[output1],[output2],...]
+    # If only one output is handed over, it will be wrapped in additional list
+    if type(output[0]) is not list:
+        output = [output]
+
+    return_lists = []
+    for li in output:
+        return_list = []
+        for el in li:
+            comp = el["id"]["component"]
+            par = el["id"]["par"]
+            parInfo = el["id"]["parInfo"]
+            try:
+                return_list.append(
+                    df.loc[(df.component == comp) & (df.par == par) & (df.parInfo == parInfo), input_str].item())
+            except AttributeError:
+                return_list.append(None)
+            except ValueError:
+                return_list.append(None)
+        return_lists.append(return_list)
+    return return_lists
+
+
 def read_input_fields(state_selection: list) -> pd.DataFrame:
     """
     state_selection: Callback State ctx.states_list[:], can be list or list of lists
@@ -179,36 +261,3 @@ def read_input_fields(state_selection: list) -> pd.DataFrame:
             df = pd.concat([df, new_row.to_frame().T], ignore_index=True)
 
     return df
-
-
-def fill_input_fields(input_str: str, df: pd.DataFrame, output: list) -> list:
-    """
-    Description:
-    input_str: Preset name, selected by dropdown menu
-    df: Input data table (Excel definition file)
-    output: (Portion of) ctx.output_lists of apropriate callback
-
-    Function for filling input fields based on preset dropdown menu selection. For each element inside "output"
-    (list of lists or single list), appropriate data (component, par, parInfo) from df will be returned.
-    """
-    # For multiple outputs in callback, 'output' is list of lists [[output1],[output2],...]
-    # If only one output is handed over, it will be wrapped in additional list
-    if type(output[0]) is not list:
-        output = [output]
-
-    return_lists = []
-    for li in output:
-        return_list = []
-        for el in li:
-            comp = el["id"]["component"]
-            par = el["id"]["par"]
-            parInfo = el["id"]["parInfo"]
-            try:
-                return_list.append(
-                    df.loc[(df.component == comp) & (df.par == par) & (df.parInfo == parInfo), input_str].item())
-            except AttributeError:
-                return_list.append(None)
-            except ValueError:
-                return_list.append(None)
-        return_lists.append(return_list)
-    return return_lists
