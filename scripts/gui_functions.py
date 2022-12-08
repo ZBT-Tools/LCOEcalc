@@ -202,13 +202,14 @@ def build_initial_collect(state_list: list):
 
 def fill_input_fields(input_str: str, df: pd.DataFrame, output: list) -> list:
     """
-    Description:
-    input_str: Preset name, selected by dropdown menu
-    df: Input data table (Excel definition file)
-    output: (Portion of) ctx.output_lists of apropriate callback
+    Input:
+        input_str: Preset name, selected by dropdown menu
+        df: Input data table (Excel definition file)
+        output: (Portion of) ctx.output_lists of apropriate callback
 
-    Function for filling input fields based on preset dropdown menu selection. For each element inside "output"
-    (list of lists or single list), appropriate data (component, par, parInfo) from df will be returned.
+    Definition:
+        Function for filling input fields based on preset dropdown menu selection. For each element inside "output"
+        (list of lists or single list), appropriate data (component, par, parInfo) from df will be returned.
     """
     # For multiple outputs in callback, 'output' is list of lists [[output1],[output2],...]
     # If only one output is handed over, it will be wrapped in additional list

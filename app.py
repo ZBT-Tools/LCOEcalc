@@ -14,13 +14,10 @@ Code Structure:
     - App layout definition
 
 """
-
 import pandas as pd
 import dash
 from dash import Input, Output, dcc, html, ctx, State, ALL
 import dash_bootstrap_components as dbc
-from scripts.gui_functions import styling_input_card_component, styling_generic_dropdown, styling_input_card_generic, \
-    fill_input_fields, read_input_fields, build_initial_collect
 import base64
 from flask_caching import Cache
 import pickle
@@ -31,19 +28,22 @@ import plotly.graph_objects as go
 from scripts.lcoe_simple import multisystem_calculation
 from scripts.data_handler import store_data
 
-# Definition variables
+from scripts.gui_functions import styling_input_card_component, styling_generic_dropdown, styling_input_card_generic, \
+    fill_input_fields, read_input_fields, build_initial_collect
+
+# 1. Tool specific definitions & Initialization prior start
+# ----------------------------------------------------------------------------------------------------------------------
+
+# Note: Storage elements (dcc.Store) are defined inside app layout below
+
 system_components = ["HiPowAR", "ICE", "SOFC"]
 
-# Initialization prior to app start
-# ----------------------------------------------------------------------------------------------------------------------
-# Storage is defined as first element inside app layout!
-
-# Read input data, presets from excel definition table
+# Input definition table with presets, excel table
 df_input = pd.read_excel("input/Dash_LCOE_ConfigurationV3.xlsx",
                          sheet_name=["Systems", "Financial", "Fuel_NH3", "Fuel_NG"])
 
 # Load images (issue with standard image load, due to png?!)
-# https://community.plotly.com/t/png-image-not-showing/15713/2
+# Fix: https://community.plotly.com/t/png-image-not-showing/15713/2
 hipowar_png = 'img/Logo_HiPowAR.png'
 hipowar_base64 = base64.b64encode(open(hipowar_png, 'rb').read()).decode('ascii')
 eu_png = 'img/EU_Logo.png'
@@ -51,38 +51,40 @@ eu_base64 = base64.b64encode(open(eu_png, 'rb').read()).decode('ascii')
 zbt_png = 'img/logo-zbt-duisburg.png'
 zbt_base64 = base64.b64encode(open(zbt_png, 'rb').read()).decode('ascii')
 
+# App initialization
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 # Force Plotly to clear local cache at each start
-# Issue occured during development: cached data used instead of updated code
+# Resolves development issue: cached data used instead of updated code
 # https://community.plotly.com/t/how-to-easily-clear-cache/7069/2
 cache = Cache(app.server, config={"CACHE_TYPE": "simple"})
 cache.clear()
 
-# App layout definition
+# 2. App layout
 # ----------------------------------------------------------------------------------------------------------------------
 # Info: as proposed by dash bootstrap component guide, everything is ordered in dbc.Row's, containing dbc.Col's
 
 app.layout = dbc.Container([
+    # Storage definition
+    # ---------------
     # Inputs and results are of small file size, therefore users local memory is used.
     # Limit: 'It's generally safe to store [...] 5~10MB in most desktop-only applications.'
     # https://dash.plotly.com/sharing-data-between-callbacks
     # https://dash.plotly.com/dash-core-components/store
     dcc.Store(id='storage', storage_type='memory'),
-    dcc.Store(id='storage_NG', storage_type='memory'),
 
-    # Header Row with Title, Logos,...
+    # Header Row with title & logos
     dbc.Row([dbc.Col(html.H1("HiPowAR LCOE Tool"), width=4),
              dbc.Col(html.Img(src='data:image/png;base64,{}'.format(hipowar_base64), width=100)),
              dbc.Col(html.Img(src='data:image/png;base64,{}'.format(eu_base64), width=300)),
              dbc.Col(html.Img(src='data:image/png;base64,{}'.format(zbt_base64), width=250))]),
     html.Hr(),
 
-    # Accordeon-like User Interfalce
+    # Accordeon-like User Interface and result presentation
     dbc.Row([dbc.Col([
         dbc.Accordion([
-            # Menu with different drop down menus for preset selections
             dbc.AccordionItem(title="Preset Selection", children=[
+                # Menu with different drop down menus for preset selections, 'Calculate' Button
                 # Dropdown System Preset Selection
                 dbc.Row([
                     dbc.Col(styling_generic_dropdown(id_name="dd_preset", label="System Presets",
@@ -109,8 +111,8 @@ app.layout = dbc.Container([
                     dbc.Col(dbc.Button("Run Study", id="bt_run_study"), width=2)
                 ])
             ]),
-            # Menu with input cards for each energy conversion system
-            dbc.AccordionItem(title="Energy Conversion System Definition I", children=[
+            dbc.AccordionItem(title="Energy Conversion System Settings", children=[
+                # Menu with input cards for each energy conversion system (HiPowAR, SOFC,ICE)
                 dbc.Row([
                     dbc.Col(styling_input_card_component(component="HiPowAR", header="HiPowAR"), md=4),
                     dbc.Col(styling_input_card_component("SOFC", header="SOFC",
@@ -121,7 +123,7 @@ app.layout = dbc.Container([
                     dbc.Col(styling_input_card_component(component="ICE", header="Internal Combustion Eng."), md=4)
                 ], )
             ], ),
-            dbc.AccordionItem([
+            dbc.AccordionItem(title="Environmental Settings", children=[
                 dbc.Row([
                     dbc.Col(styling_input_card_generic(component="Financials", header="Financials",
                                                        rowinputs=[
@@ -150,13 +152,13 @@ app.layout = dbc.Container([
 
                     ], md=4)
                 ])
-            ], title="General Settings", ),
-            dbc.AccordionItem([
+            ]),
+            dbc.AccordionItem(title='Nominal Results', children=[
                 dbc.Row(dbc.Col(
                     dbc.Table(id="table_lcoe_nominal", bordered=True)
                 ))
-            ], title='Nominal Results'),
-            dbc.AccordionItem([
+            ],),
+            dbc.AccordionItem(title="LCOE Study Results", children=[
                 dbc.Row([
                     dbc.Col([
                         dcc.Graph(id='graph_lcoe_multi_NH3')
@@ -169,31 +171,23 @@ app.layout = dbc.Container([
                     dbc.Col([
                         dcc.Graph(id='lcoe-graph-sensitivity')])
                 ])
-            ], title="LCOE Study Results"),
-            dbc.AccordionItem([], title="About"),
-            dbc.AccordionItem([
-                dbc.Row([dbc.Col(dbc.Button("Fill Randomly", id="bt_randomfill"), width=2),
-                         dbc.Col(dbc.Button("Build: Initial Data Collect", id="bt_collect"), width=2),
+            ], ),
+            dbc.AccordionItem(title="About", children=[]),
+            dbc.AccordionItem(title="Developer", children=[
+                dbc.Row([dbc.Col(dbc.Button("Build: Initial Data Collect", id="bt_collect"), width=2),
                          dbc.Col(dbc.Button("Build: Random Fill Fields", id="bt_fill"), width=2),
-                         dbc.Col(dbc.Button("Update Data Collect", id="bt_update_collect"), width=2),
-                         dbc.Col(dbc.Button("Load Input", id="bt_load_Input"), width=2),
-                         dbc.Col(dbc.Button("Debug Print", id="bt_debugprint"), width=2),
-                         dbc.Col(dbc.Button("Init", id="bt_init"), width=2)
+                         dbc.Col(dbc.Button("Work: Update Data Collect", id="bt_update_collect"), width=2),
+                         dbc.Col(dbc.Button("Debug: Init", id="bt_init"), width=2)
                          ]),
-                dbc.Row([html.Pre("...", id="flag_nominal_calculation_done")]),
-                dbc.Row([html.Pre("...", id="flag_sensitivity_calculation_done")]),
-                dbc.Row([html.Pre("...", id="txt_build1")]),  # ToDo: Tidy up
-                dbc.Row([html.Pre("...", id="txt_build2")]),
-                dbc.Row([html.Pre("...", id="txt_dev_button_init")]),
-                dbc.Row([html.Pre("...", id="txt_out4")]),
-                dbc.Row([html.Pre("...", id="txt_out7")])
-            ], title="Developer"),
+                dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done")]),
+                dbc.Row([html.Pre("Sensitivity Calculation Done:", id="flag_sensitivity_calculation_done")]),
+                dbc.Row([html.Pre("Build: Initial Collect Input", id="txt_build1")]),
+                dbc.Row([html.Pre("Build: Update Collect Input", id="txt_build2")]),
+                dbc.Row([html.Pre("Debug Calculation:", id="txt_dev_button_init")])
+            ]),
         ], always_open=True)
-
     ])])
-
 ], fluid=True)
-
 
 # Callback Functions, app specific
 # --------------------------------------------------------------
@@ -205,17 +199,21 @@ app.layout = dbc.Container([
     Output({'type': 'input', 'component': 'SOFC', 'par': ALL, 'parInfo': ALL}, 'value'),
     Output({'type': 'input', 'component': 'ICE', 'par': ALL, 'parInfo': ALL}, 'value'),
     [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_input["Systems"].columns[4:]))], )
-def cbf_quickstart_select_preset(*inp):
+def cbf_quickstart_select_system_preset(*inp):
     """
-    Each element of dropdown list  "dd_...." triggers callback.
+    Description:
+        Dropdown menu with system presets consist of elements with ids dd_preset_{n}
+    Input:
+        Each dropdown element triggers callback.
     Output:
-    - Output[0]:   Text next to dropdown menu
-    - Output[1:]: Data as defined in definition table
+    - Output[0]:  Selection name --> text field next to dropdown
+    - Output[1:]: System data --> data flieds
     """
     try:
         selection_title = df_input["Systems"].columns[4:][int(ctx.triggered_id[-1])]
-    except TypeError:  # Initialization
-        selection_title = df_input["Systems"].columns[4:][0]
+    except TypeError:
+        # At app initialization, callback is executed witout trigger id. Select newest definition
+        selection_title = df_input["Systems"].columns[4:][-1]
 
     return_lists = fill_input_fields(selection_title, df=df_input["Systems"], output=ctx.outputs_list[1:])
 
@@ -230,9 +228,13 @@ def cbf_quickstart_select_preset(*inp):
     Output({'type': 'input', 'component': 'Financials', 'par': ALL, 'parInfo': ALL}, 'value'),
     [Input(f"dd_Financial_{n}", "n_clicks") for n in range(len(df_input["Financial"].columns[4:]))], )
 def cbf_quickstart_select_financial(*inputs):
+    """
+    Same as for cbf_quickstart_select_system_preset
+    """
     try:
         selection_title = df_input["Financial"].columns[4:][int(ctx.triggered_id[-1])]
-    except TypeError:  # Initialization
+    except TypeError:
+        # At app initialization, callback is executed witout trigger id. Select newest definition
         selection_title = df_input["Financial"].columns[4:][0]
 
     return_lists = fill_input_fields(selection_title, df=df_input["Financial"], output=ctx.outputs_list[1])
@@ -248,9 +250,13 @@ def cbf_quickstart_select_financial(*inputs):
     Output({'type': 'input', 'component': 'Fuel_NH3', 'par': ALL, 'parInfo': ALL}, 'value'),
     [Input(f"dd_NH3_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NH3"].columns[4:]))])
 def cbf_quickstart_select_NH3fuel_preset(*inputs):
+    """
+    Same as for cbf_quickstart_select_system_preset
+    """
     try:
         selection_title = df_input["Fuel_NH3"].columns[4:][int(ctx.triggered_id[-1])]
-    except TypeError:  # Initialization
+    except TypeError:
+        # At app initialization, callback is executed witout trigger id. Select newest definition
         selection_title = df_input["Fuel_NH3"].columns[4:][0]
     return_lists = fill_input_fields(selection_title, df=df_input["Fuel_NH3"], output=ctx.outputs_list[1])
 
@@ -265,9 +271,13 @@ def cbf_quickstart_select_NH3fuel_preset(*inputs):
     Output({'type': 'input', 'component': 'Fuel_NG', 'par': ALL, 'parInfo': ALL}, 'value'),
     [Input(f"dd_NG_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NG"].columns[4:]))])
 def cbf_quickstart_select_NGfuel_preset(*inputs):
+    """
+    Same as for cbf_quickstart_select_system_preset
+    """
     try:
         selection_title = df_input["Fuel_NG"].columns[4:][int(ctx.triggered_id[-1])]
-    except TypeError:  # Initialization
+    except TypeError:
+        # At app initialization, callback is executed witout trigger id. Select newest definition
         selection_title = df_input["Fuel_NG"].columns[4:][0]
 
     return_lists = fill_input_fields(selection_title, df=df_input["Fuel_NG"], output=ctx.outputs_list[1])
