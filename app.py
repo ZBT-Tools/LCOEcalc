@@ -28,7 +28,7 @@ import plotly.graph_objects as go
 from scripts.lcoe_simple import multisystem_calculation
 from scripts.data_handler import store_data
 
-from scripts.gui_functions import styling_input_card_component, styling_generic_dropdown, styling_input_card_generic, \
+from scripts.gui_functions import styling_input_card_component, styling_generic_dropdown, styling_input_card_LCOE_generic, \
     fill_input_fields, read_input_fields, build_initial_collect
 
 # 1. Tool specific definitions & Initialization prior start
@@ -80,18 +80,27 @@ app.layout = dbc.Container([
     dcc.Store(id='storage', storage_type='memory'),
 
     # Header Row with title & logos
-    dbc.Row([dbc.Col(html.H1("HiPowAR LCOE Tool"), width=12, xl=3),
-             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(hipowar_base64), width=100), width=12, xl=3),
-             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(eu_base64), width=300), width=12, xl=3),
+    dbc.Row([dbc.Col(html.H1("This is a simple Application."), width=12, xl=3),
              dbc.Col(html.Img(src='data:image/png;base64,{}'.format(zbt_base64), width=250), width=12, xl=3)]),
     html.Hr(),
-
-    # Accordeon-like User Interface and result presentation
 
     # Main
     dbc.Row([
         # Setting Column
         dbc.Col([
+
+            dbc.Col(styling_input_card_LCOE_generic(component="InputParameter", header="Input Parameter",
+                                                    rowinputs=[
+                                                   {'par': "discountrate_perc",
+                                                    'title': "Discount Rate [%]"},
+                                                   {'par': "lifetime_yr", 'title': "Lifetime [y]"},
+                                                   {'par': "operatinghoursyearly",
+                                                    'title': "Operating hours [hr/yr]"}]
+                                                    ), width=12),
+
+
+
+
             dbc.Accordion([
                 dbc.AccordionItem(title="Preset Selection", children=[
                     # Menu with different drop down menus for preset selections, 'Calculate' Button
@@ -145,18 +154,18 @@ app.layout = dbc.Container([
                 ], ),
                 dbc.AccordionItem(title="Environmental Settings", children=[
                     dbc.Row([
-                        dbc.Col(styling_input_card_generic(component="Financials", header="Financials",
-                                                           rowinputs=[
+                        dbc.Col(styling_input_card_LCOE_generic(component="Financials", header="Financials",
+                                                                rowinputs=[
                                                                {'par': "discountrate_perc",
                                                                 'title': "Discount Rate [%]"},
                                                                {'par': "lifetime_yr", 'title': "Lifetime [y]"},
                                                                {'par': "operatinghoursyearly",
                                                                 'title': "Operating hours [hr/yr]"}]
-                                                           ), width=12),
+                                                                ), width=12),
                         dbc.Col([
                             dbc.Row(dbc.Col(
-                                styling_input_card_generic(component='Fuel_NH3', header="NH3 Fuel Cost",
-                                                           rowinputs=[
+                                styling_input_card_LCOE_generic(component='Fuel_NH3', header="NH3 Fuel Cost",
+                                                                rowinputs=[
                                                                {'par': 'fuel_cost_Eur_per_kWh',
                                                                 'title': "NH3 cost [€/kWh]"},
                                                                {'par': 'fuel_costIncrease_percent_per_year',
@@ -164,8 +173,8 @@ app.layout = dbc.Container([
                             )),
 
                             dbc.Row(dbc.Col(
-                                styling_input_card_generic(component='Fuel_NG', header="NG Fuel Cost",
-                                                           rowinputs=[
+                                styling_input_card_LCOE_generic(component='Fuel_NG', header="NG Fuel Cost",
+                                                                rowinputs=[
                                                                {'par': 'fuel_cost_Eur_per_kWh', 'title': "NG cost ["
                                                                                                          "€/kWh]"},
                                                                {'par': 'fuel_costIncrease_percent_per_year',

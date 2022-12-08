@@ -2,7 +2,6 @@ dash
 pandas
 plotly
 jsonpickle
-numpy
 dacite
 dataclasses
 setuptools

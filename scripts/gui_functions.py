@@ -44,7 +44,7 @@ def styling_input_row_generic(component: str, par: str, title: str, n_inputfield
             widths = [12, 12]
             xl_widths = [6, 2]
         elif n_inputfields == 2:
-            widths =[12, 6, 6]
+            widths = [12, 6, 6]
             xl_widths = [6, 2, 2]
         elif n_inputfields == 3:
             widths = [12, 4, 4, 4]
@@ -83,8 +83,49 @@ def styling_input_row_generic(component: str, par: str, title: str, n_inputfield
     return dbc.Row(row_columns)
 
 
+def styling_input_rows_generic(identicalRowInput: dict,
+                               specificRowInput: list) -> list:
+    """
+    Description:
+        Creates list of styling_input_row_generic(...) Input rows.
+        identicalRowInput parameter will be used for all input fields.
+        specificRowInput parameter will be used for individual rows.
+
+    Input:
+        identicalRowInput
+        specificRowInput:  list of dicts with input_row_generic input information not given in identicalRowInput,
+                            structure:  [inputrow_dict, inputrow_dict, inputrow_dict,...]
+                                        [{'par': ..., 'title': 'inputrow', 'n_inputfields': ...}, ...]
+                            example:    [{'par': 'size_kW', "title": "El. Output [kW]", "n_inputfields": 1}, ...]
+    """
+    rws = [styling_input_row_generic(**identicalRowInput.update(specific)) for specific in specificRowInput]
+    return rws
+
+
 # General Card definition with input rows
-def styling_input_card_generic(component: str, header: str, rowinputs: list) -> dbc.Card:
+def styling_input_card_generic(header: str,
+                               firstRow: list,
+                               rws: list) -> dbc.Card:
+    """
+    Description:
+        Creates dbc.card with header and multiple input rows generate by styling_input_rows_generic.
+    Input:
+        header:     card title
+        firstRow:   definition of first row
+        rws:        list of input rows
+    """
+    rows = firstRow.extend(rws)
+
+    # Create Card
+    card = dbc.Card([
+        dbc.CardHeader(header),
+        dbc.CardBody(
+            rows
+        )])
+    return card
+
+
+def styling_input_card_LCOE_generic(component: str, header: str, rowinputs: list) -> dbc.Card:
     """
     Creates dbc.Card with header and input rows: "input_row_generic"s
     :param rowinputs:   dict with input_row_generic input information,
@@ -97,13 +138,17 @@ def styling_input_card_generic(component: str, header: str, rowinputs: list) -> 
     :return:
     """
 
-    # LCOE Tool specific column definition: 4 Columns
-    rows = [dbc.Row([dbc.Col(width=12, xl=6),
-                     dbc.Col(dbc.Label("Nominal"), width=4, xl=2),
-                     dbc.Col(dbc.Label("Min"), width=4, xl=2),
-                     dbc.Col(dbc.Label("Max"), width=4, xl=2)
-                     ])]
+    # LCOE Tool specific first row definition
+    fist_rows = [dbc.Row([dbc.Col(width=12, xl=6),
+                          dbc.Col(dbc.Label("Nominal"), width=4, xl=2),
+                          dbc.Col(dbc.Label("Min"), width=4, xl=2),
+                          dbc.Col(dbc.Label("Max"), width=4, xl=2)
+                          ])]
     # Create rows
+    styling_input_rows_generic(identicalRowInput={component: component},)
+
+
+
     rws = [styling_input_row_generic(component=component, par=rw["par"], title=rw["title"], n_inputfields=3) for rw in
            rowinputs]
     rows.extend(rws)
@@ -135,7 +180,7 @@ def styling_input_card_component(component: str, header: str, add_rows: list = N
 
     if add_rows is not None:
         LCOE_rowInput.extend(add_rows)
-    card = styling_input_card_generic(component, header, LCOE_rowInput)
+    card = styling_input_card_LCOE_generic(component, header, LCOE_rowInput)
     return card
 
 
