@@ -7,7 +7,7 @@ import pandas as pd
 
 
 def styling_input_row_generic(component: str, par: str, title: str, n_inputfields: int = 3, fieldtype: list = None,
-                              parInfo: list = None, widths: list = None,
+                              parInfo: list = None, widths: list = None, xl_widths: list = None,
                               disabled: list = None) -> dbc.Row:
     """
     Creates dbc row with title and input fields.
@@ -41,11 +41,14 @@ def styling_input_row_generic(component: str, par: str, title: str, n_inputfield
     # Default column/field widths based on n_inputfields
     if widths is None:
         if n_inputfields == 1:
-            widths = [6, 2]
+            widths = [12, 12]
+            xl_widths = [6, 2]
         elif n_inputfields == 2:
-            widths = [6, 2, 2]
+            widths =[12, 6, 6]
+            xl_widths = [6, 2, 2]
         elif n_inputfields == 3:
-            widths = [6, 2, 2, 2]
+            widths = [12, 4, 4, 4]
+            xl_widths = [6, 2, 2, 2]
         else:
             equal_wd = int(12 / n_inputfields)
             widths = [equal_wd] * n_inputfields
@@ -64,15 +67,15 @@ def styling_input_row_generic(component: str, par: str, title: str, n_inputfield
         disabled = [False] * n_inputfields
 
     # First column: Label
-    row_columns = [dbc.Col(dbc.Label(title), width=widths[0])]
+    row_columns = [dbc.Col(dbc.Label(title), width=widths[0], xl=xl_widths[0])]
 
     # Add input-Fields
-    for t, w, d, p in zip(fieldtype, widths[1:], disabled, parInfo):
+    for t, w, xlw, d, p in zip(fieldtype, widths[1:], xl_widths[1:], disabled, parInfo):
         col = dbc.Col(dbc.Input(id={'type': t,
                                     'component': component,
                                     'par': par,
                                     'parInfo': p}, type="number", size="sm",
-                                disabled=d), width=w),
+                                disabled=d), width=w, xl=xlw),
         if type(col) == tuple:
             col = col[0]
         row_columns.append(col)
@@ -95,10 +98,10 @@ def styling_input_card_generic(component: str, header: str, rowinputs: list) -> 
     """
 
     # LCOE Tool specific column definition: 4 Columns
-    rows = [dbc.Row([dbc.Col(width=6),
-                     dbc.Col(dbc.Label("Nominal"), width=2),
-                     dbc.Col(dbc.Label("Min"), width=2),
-                     dbc.Col(dbc.Label("Max"), width=2)
+    rows = [dbc.Row([dbc.Col(width=12, xl=6),
+                     dbc.Col(dbc.Label("Nominal"), width=4, xl=2),
+                     dbc.Col(dbc.Label("Min"), width=4, xl=2),
+                     dbc.Col(dbc.Label("Max"), width=4, xl=2)
                      ])]
     # Create rows
     rws = [styling_input_row_generic(component=component, par=rw["par"], title=rw["title"], n_inputfields=3) for rw in
@@ -108,11 +111,8 @@ def styling_input_card_generic(component: str, header: str, rowinputs: list) -> 
     # Create Card
     card = dbc.Card([
         dbc.CardHeader(header),
-        dbc.CardBody(  # [
-            # html.Div(
+        dbc.CardBody(
             rows
-            # )
-            # ]
         )])
     return card
 
@@ -150,7 +150,8 @@ def styling_generic_dropdown(id_name: str, label: str, elements: list) -> dbc.Dr
     dropdown = dbc.DropdownMenu(
         id=id_name,
         label=label,
-        children=[dbc.DropdownMenuItem(el, id=f"{id_name}_{ct}", n_clicks=0) for ct, el in enumerate(elements)]
+        children=[dbc.DropdownMenuItem(el, id=f"{id_name}_{ct}", n_clicks=0) for ct, el in enumerate(elements)],
+        className="d-grid gap-2"
     )
     return dropdown
 
