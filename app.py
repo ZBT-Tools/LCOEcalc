@@ -1,9 +1,10 @@
 """ LCOE Calculation Tool
 
 Description ....
-Test
-#ToDo: Show Graphs at website startup. therefore initialize storage with default system data and remove 'prevent
-    callback' from plot callbacks
+
+
+# To Do
+    - Show Graphs at website startup. therefore initialize storage with default system data.
 
 Code Structure:
 
@@ -13,29 +14,22 @@ Code Structure:
     - App layout definition
 
 """
+
 import pandas as pd
-
 import dash
-from dash import Input, Output, dcc, html, ctx, State, MATCH, ALL
-
+from dash import Input, Output, dcc, html, ctx, State, ALL
 import dash_bootstrap_components as dbc
 from scripts.gui_functions import styling_input_card_component, styling_generic_dropdown, styling_input_card_generic, \
     fill_input_fields, read_input_fields, build_initial_collect
-
 import base64
-# import plotly.graph_objs as go
 from flask_caching import Cache
-from dacite import from_dict
 import pickle
 import jsonpickle
 import datetime
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-from scripts.lcoe_class import SystemIntegrated
-from scripts.loce_class_helper import DC_FinancialInput, DC_SystemInput, DC_FuelInput
-
-from scripts.parameter_study import InputHandlerLCOE
 from scripts.lcoe_simple import multisystem_calculation
+from scripts.data_handler import store_data
 
 # Definition variables
 system_components = ["HiPowAR", "ICE", "SOFC"]
@@ -201,23 +195,9 @@ app.layout = dbc.Container([
 ], fluid=True)
 
 
-# Callbacks
+# Callback Functions, app specific
 # --------------------------------------------------------------
 # --------------------------------------------------------------
-
-def store_data(dict_systems: dict):
-    """
-    # https://github.com/jsonpickle/jsonpickle, as json.dumps can only handle simple variables, no objects, DataFrames..
-    # Info: Eigentlich sollte jsonpickle reichen, um dict mit Klassenobjekten, in denen DataFrames sind, zu speichern,
-    #       Es gibt jedoch Fehlermeldungen. Daher wird Datenstruktur vorher in pickle (Binärformat)
-    #       gespeichert und dieser anschließend in json konvertiert.
-    #       (Konvertierung in json ist notwendig für lokalen dcc storage)
-    """
-    data = pickle.dumps(dict_systems)
-    data = jsonpickle.dumps(data)
-
-    return data
-
 
 @app.callback(
     Output("txt_Preset_Selection", "children"),
@@ -353,7 +333,7 @@ def cbf_quickstart_button_runSensitivityLCOE(*args):
     # Collect data of input fields in dataframe
     df = read_input_fields(ctx.states_list[0])
 
-    # 2. Initialize systems, prepare input-sets, perform calculations
+    # 2. Initialize systems, prepare input-sets, perform calculations, store data
     # ------------------------------------------------------------------------------------------------------------------
     systems = multisystem_calculation(df, system_components, ["Fuel_NH3", "Fuel_NG"], "all_minmax")
 
@@ -458,11 +438,13 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
     for system in ["HiPowAR_NH3", "SOFC_NH3", "ICE_NH3"]:
 
         tb = systems[system].df_results.copy()
+        tb = tb.apply(pd.to_numeric, errors='ignore')  # Todo relocate
 
         # Create first plot with only system parameters, identified by "p".
 
-        variation_pars = tb.columns.drop(["size_kW", "LCOE"])
-        #variation_pars = variation_pars.drop([x for x in variation_pars if x[0] != "p"])
+        variation_pars = tb.columns.drop(["size_kW", "LCOE", "name", "fuel_name"])
+
+        # variation_pars = variation_pars.drop([x for x in variation_pars if x[0] != "p"])
 
         # Build new dataframe for plotting
         result_df = pd.DataFrame(columns=tb.columns)
@@ -480,6 +462,9 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
             qs = qs[:-3]  # remove last  " & "
 
             tbred = tb.query(qs)  # search for rows fullfilling query
+            # In case modpar has no variation (e.g. fuel cost increase is set as [0,0,0], all values are the same.
+            # Thus following rows could include "nominal" set again. This needs to be prevented.
+            tbred.drop(index="nominal", inplace=True)
             rw = tbred.nsmallest(1, modpar)  # find smallest value of modpar for all results and add to result_df
             rw["modpar"] = modpar
             result_df = pd.concat([result_df, rw])

@@ -1,6 +1,6 @@
 import pandas as pd
 from dataclasses import dataclass
-from scripts.parameter_study import InputHandlerLCOE
+from scripts.data_handler import InputHandlerLCOE
 
 
 @dataclass
