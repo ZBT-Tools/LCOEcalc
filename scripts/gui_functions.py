@@ -6,107 +6,100 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 
 
-def styling_input_row_generic(component: str, par: str, title: str, n_inputfields: int = 3, fieldtype: list = None,
-                              parInfo: list = None, widths: list = None, xl_widths: list = None,
-                              disabled: list = None) -> dbc.Row:
+def style_inpRow_generic(label: str,
+                         row_id_dict: dict,
+                         n_inputfields: int,
+                         field_id: dict,
+                         widths: list,
+                         fieldtype: list = None,
+                         disabled: list = None) -> dbc.Row:
     """
     Creates dbc row with title and input fields.
     Example: Row title and 3 input fields -->    || Capex [%]   [...]  [...] [...] ||
 
     Structure: dbc.Row([dbc.Col(),dbc.Col(),...])
 
-    Input field identifier 'id' is dict of type:
-        id={'type': ...,'component', ..., 'par': ..., },
-        'type' defines type of field, e.g. 'input',...
-        'component' defines system, field is related to, e.g. 'SOFC'
-        'par' defines system parameter, e.g. 'OPEX_€_per_kW'
-        'parInfo' defines additional information, e.g. 'nominal', ',min', 'max'
 
-        Example: id = {'type': 'input', 'component': 'SOFC', 'par': 'CAPEX_€_per_kW', 'parInfo':'min}
-
-    :param fieldtype: str = list of field type for each input field, default handling below
-    :param component:       used as field identifier
-    :param par:             used as field identifier
-    :param title:           Row title
-    :param n_inputfields:   number of input fields
-    :param parInfo:         list of field identifiers, default handling below
-    :param widths:          list of width for each input field, default handling below
+    :param label:           Row label
+    :param row_id_dict:     Part of field id which is identical for all fields in row.
+                            Example: {'type': 'input', 'component': 'SOFC', 'par': 'CAPEX_€_per_kW'}
+    :param field_id:        Part of field id, which distinguish fields from each other.
+                            Structure: {par:[str1,str2,str3]} for 3 input fields.
+                            Example: {"valuetype":["nominal","min","max"]}
+    :param n_inputfields:   number of data fields
+    :param widths:          dbc width definition for title (1) and input fields (2)
+                            Example [{"width":12,"xl:6}{"width":4,"xl:2}]
+    :param fieldtype:            Option to change input type, default is "number"
     :param disabled:        option to disable input field , default handling below
     :return:
     """
-    # Default input field type
+
+    # Default field type 'number'
     if fieldtype is None:
-        fieldtype = ['input'] * n_inputfields
-
-    # Default column/field widths based on n_inputfields
-    if widths is None:
-        if n_inputfields == 1:
-            widths = [12, 12]
-            xl_widths = [6, 2]
-        elif n_inputfields == 2:
-            widths =[12, 6, 6]
-            xl_widths = [6, 2, 2]
-        elif n_inputfields == 3:
-            widths = [12, 4, 4, 4]
-            xl_widths = [6, 2, 2, 2]
-        else:
-            equal_wd = int(12 / n_inputfields)
-            widths = [equal_wd] * n_inputfields
-
-    # Default postfixes (...as 'min', 'max',...)
-    if parInfo is None:
-        if n_inputfields == 1:
-            parInfo = ["nominal"]  # Nominal value only, no postfix required
-        elif n_inputfields == 3:
-            parInfo = ["nominal", "min", "max"]
-        else:
-            parInfo = [f"_{n}" for n in range(n_inputfields)]
-
+        fieldtype = ['number'] * n_inputfields
     # Default non-disabled input fields
     if disabled is None:
         disabled = [False] * n_inputfields
 
     # First column: Label
-    row_columns = [dbc.Col(dbc.Label(title), width=widths[0], xl=xl_widths[0])]
+    row_columns = [dbc.Col(dbc.Label(label), **widths[0])]
 
-    # Add input-Fields
-    for t, w, xlw, d, p in zip(fieldtype, widths[1:], xl_widths[1:], disabled, parInfo):
-        col = dbc.Col(dbc.Input(id={'type': t,
-                                    'component': component,
-                                    'par': par,
-                                    'parInfo': p}, type="number", size="sm",
-                                disabled=d), width=w, xl=xlw),
-        if type(col) == tuple:
-            col = col[0]
+    # # Add input-Fields
+    for n in range(n_inputfields):
+        dct_id = row_id_dict.copy()
+        fieldspec_id = {k: v[n] for (k, v) in field_id.items()}
+        dct_id.update(fieldspec_id)  # Merge row and field id
+
+        col = dbc.Col(dbc.Input(id=dct_id,
+                                type=fieldtype[n],
+                                disabled=disabled[n],
+                                size="sm"),
+                      **widths[1])
+
+        # if type(col) == tuple: #
+        #     col = col[0]
         row_columns.append(col)
 
     return dbc.Row(row_columns)
 
 
-# General Card definition with input rows
-def styling_input_card_generic(component: str, header: str, rowinputs: list) -> dbc.Card:
+def style_inpRows_generic(identic_row_input_dict: dict,
+                          specific_row_input: list) -> list:
     """
-    Creates dbc.Card with header and input rows: "input_row_generic"s
-    :param rowinputs:   dict with input_row_generic input information,
+    Description:
+        Creates list of styling_input_row_generic(...) Input rows.
+        identic_row_input_dict parameter will be used for all input fields.
+        specific_row_input parameter will be used for individual rows.
+
+    Input:
+        identic_row_id_dict
+        specificRowInput:  list of dicts with input_row_generic input information not given in identicalRowInput,
                             structure:  [inputrow_dict, inputrow_dict, inputrow_dict,...]
                                         [{'par': ..., 'title': 'inputrow', 'n_inputfields': ...}, ...]
-                            example:    [{'par': 'size_kW', "title": "El. Output [kW]", "n_inputfields": 1}, ...],
-
-    :param component:   ... name for all rows of card
-    :param header:      card title
-    :return:
+                            example:    [{'par': 'size_kW', "title": "El. Output [kW]", "n_inputfields": 1}, ...]
     """
+    rws = []
+    for specific_row in specific_row_input:
+        row_def = identic_row_input_dict
+        row_def.update(specific_row)
 
-    # LCOE Tool specific column definition: 4 Columns
-    rows = [dbc.Row([dbc.Col(width=12, xl=6),
-                     dbc.Col(dbc.Label("Nominal"), width=4, xl=2),
-                     dbc.Col(dbc.Label("Min"), width=4, xl=2),
-                     dbc.Col(dbc.Label("Max"), width=4, xl=2)
-                     ])]
-    # Create rows
-    rws = [styling_input_row_generic(component=component, par=rw["par"], title=rw["title"], n_inputfields=3) for rw in
-           rowinputs]
-    rows.extend(rws)
+        rws.append(style_inpRow_generic(**row_def))
+
+    return rws
+
+
+def style_inpCard_generic(header: str,
+                          firstRow: list,
+                          rws: list) -> dbc.Card:
+    """
+    Description:
+        Creates dbc.card with header and multiple input rows generate by styling_input_rows_generic()
+    Input:
+        header:     card title
+        firstRow:   definition of first row
+        rws:        list of input rows
+    """
+    rows = firstRow.extend(rws)
 
     # Create Card
     card = dbc.Card([
@@ -117,34 +110,13 @@ def styling_input_card_generic(component: str, header: str, rowinputs: list) -> 
     return card
 
 
-def styling_input_card_component(component: str, header: str, add_rows: list = None) -> dbc.Card:
+def style_generic_dropdown(id_name: str, label: str, elements: list) -> dbc.DropdownMenu:
     """
-    Creates dbc.Card with header and HiPowAR LCOE Workpackage specific Component input rows:
+    Creates dbc dropdown menu
 
-    :param add_rows:    optional list of dicts for additional input_row_generic rows
-    :param component:   ... name for all rows of card
-    :param header:      card title
-    :return:
-    """
-
-    # Standard LCOE Component input
-    LCOE_rowInput = [{'par': "size_kW", "title": "El. Output [kW]", "n_inputfields": 1},
-                     {'par': "capex_Eur_kW", "title": "Capex [€/kW]", "n_inputfields": 3},
-                     {'par': "opex_Eur_kWh", "title": "Opex (no Fuel) [€/kWh]", "n_inputfields": 3},
-                     {'par': "eta_perc", "title": "Efficiency [%]", "n_inputfields": 3}]
-
-    if add_rows is not None:
-        LCOE_rowInput.extend(add_rows)
-    card = styling_input_card_generic(component, header, LCOE_rowInput)
-    return card
-
-
-def styling_generic_dropdown(id_name: str, label: str, elements: list) -> dbc.DropdownMenu:
-    """
-
-    :param id_name: dash component name
-    :param label: label
-    :param elements: list of dropdown menu items, ID is generated like {id_name}_{list counter}
+    :param id_name:         dash component name
+    :param label:           label
+    :param elements:        list of dropdown menu items, ID is generated like {id_name}_{list counter}
     :return:
     """
     dropdown = dbc.DropdownMenu(
@@ -156,10 +128,20 @@ def styling_generic_dropdown(id_name: str, label: str, elements: list) -> dbc.Dr
     return dropdown
 
 
+def test_style_inp_generic():
+    row = style_inpRow_generic(label="testrow",
+                               row_id_dict={"type": "input", "rownumber": 1},
+                               n_inputfields=3,
+                               field_id={"fieldnumber": [1, 2, 3], "fielddescr": ["min", "max", "other"]},
+                               widths=[{"width": 12, "xl": 6}, {"width": 4, "xl": 2}], )
+
+    return row
+
+
 def build_randomfill_input_fields(output: list) -> list:
     """
     Description:
-    output: (Portion of) ctx.output_lists of apropriate callback
+    output: (Portion of) ctx.output_lists of appropriate callback
 
     Function for filling input fields with random data. For each element inside "output"
     (list of lists or single list)...
@@ -186,8 +168,10 @@ def build_randomfill_input_fields(output: list) -> list:
 def build_initial_collect(state_list: list):
     """
     Build function to create initial excel input table
+    # ToDo get columns from context, add argument to exclude columns
     Input: One list from ctx.states_list, e.g. ctx.states_list[0]
     """
+
     df = pd.DataFrame(columns=["component", "par", "parInfo"])
 
     for dct in state_list:
@@ -203,6 +187,7 @@ def build_initial_collect(state_list: list):
 
 def fill_input_fields(input_str: str, df: pd.DataFrame, output: list) -> list:
     """
+    # ToDo generalize
     Input:
         input_str: Preset name, selected by dropdown menu
         df: Input data table (Excel definition file)
@@ -237,6 +222,7 @@ def fill_input_fields(input_str: str, df: pd.DataFrame, output: list) -> list:
 
 def read_input_fields(state_selection: list) -> pd.DataFrame:
     """
+    # ToDo generalize
     state_selection: Callback State ctx.states_list[:], can be list or list of lists
 
     Function reads state_selection and writes data into DataFrame
@@ -262,3 +248,134 @@ def read_input_fields(state_selection: list) -> pd.DataFrame:
             df = pd.concat([df, new_row.to_frame().T], ignore_index=True)
 
     return df
+
+
+# Adjusted Styling Functions for LCOE TOOL
+# ----------------------------------------------------------------------------------------------------------------------
+
+
+def style_inpRow_LCOE(label: str,
+                      component: str,
+                      par: str,
+                      n_inputfields: int = 3) -> dbc.Row:
+    """
+    Modified version of styling_input_row_generic() with predefined values for field IDs and
+    widths
+    :param label:           Row label
+    :param component:       part of row_id_dict
+    :param par:             part of row_id_dict
+    :param n_inputfields:   number of data fields
+
+    """
+    # Specific LCOE Tool arguments for styling_input_row_generic()
+    # -----------------------------------------------------------------------
+    row_id_dict = {"type": "input", "component": component, "par": par}
+
+    # parInfo & Width definition
+    if n_inputfields == 1:
+        field_id = {"parInfo": ["nominal"]}
+        widths = [{"width": 12, "xl": 6}, {"width": 12, "xl": 2}]
+    elif n_inputfields == 3:
+        field_id = {"parInfo": ["nominal", "min", "max"]}
+        widths = [{"width": 12, "xl": 6}, {"width": 4, "xl": 2}]
+    else:
+        print(f"Handling for n_inputfields ={n_inputfields} not defined in styling_input_row_LCOE_generic()")
+        field_id = None
+        widths = None
+
+    row = style_inpRow_generic(label=label,
+                               row_id_dict=row_id_dict,
+                               n_inputfields=n_inputfields,
+                               field_id=field_id,
+                               widths=widths)
+
+    return row
+
+
+def style_inpRows_LCOE(component: str,
+                       specific_row_input: list) -> list:
+    """
+    Modified version of styling_input_card_generic().
+    No specific LCOE input inside function, but uses styling_input_row_LCOE_generic() to create
+    input rows
+
+    :param component:               component shared for all input rows
+    :param specific_row_input:      list with id dicts for each row
+    :return:
+    """
+    rws = []
+    identic_row_input_dict = {"component": component}
+    for specific_row in specific_row_input:
+        row_def = identic_row_input_dict
+        row_def.update(specific_row)
+
+        rws.append(style_inpRow_LCOE(**row_def))
+
+    return rws
+
+
+def style_inpCard_LCOE(header: str,
+                       component: str,
+                       specific_row_input: list) -> dbc.Card:
+    """
+    Description:
+        Modified version of styling_input_card_generic().
+        Creates dbc.card with header and multiple input rows generate by styling_input_rows_LCOE()
+    Input:
+        header:     card title
+        firstRow:   definition of first row
+        rws:        list of input rows
+    """
+    # Specific LCOE Tool arguments
+    # -----------------------------------------------------------------------
+    # Define first row
+    row = [dbc.Row([dbc.Col(width=12, xl=6),
+                         dbc.Col(dbc.Label("Nominal"), width=4, xl=2),
+                         dbc.Col(dbc.Label("Min"), width=4, xl=2),
+                         dbc.Col(dbc.Label("Max"), width=4, xl=2)
+                         ])]
+
+    rws = style_inpRows_LCOE(component=component, specific_row_input=specific_row_input)
+
+    row.extend(rws)
+
+    # Create Card
+    card = dbc.Card([
+        dbc.CardHeader(header),
+        dbc.CardBody(
+            row
+        )])
+    return card
+
+
+def style_inpCard_LCOE_comp(header: str,
+                            component: str,
+                            add_rows: list = None) -> dbc.Card:
+    """
+    Description:
+        Modified version of styling_input_card_generic() with reoccurring system component input
+        rows.
+
+    :param header:      card title
+    :param component:   id for all input fields in card
+    :param add_rows:    optional list of dicts for additional styling_input_row_LCOE()-Elements
+
+    :return:
+    """
+
+    # Standard LCOE Component input
+
+    lcoe_rowInput = [{"label": "El. Output [kW]", 'par': "size_kW", "n_inputfields": 1},
+                     {"label": "Capex [€/kW]", 'par': "capex_Eur_kW", "n_inputfields": 3},
+                     {"label": "Opex (no Fuel) [€/kWh]", 'par': "opex_Eur_kWh", "n_inputfields": 3},
+                     {"label": "Efficiency [%]", 'par': "eta_perc", "n_inputfields": 3}]
+
+    if add_rows is not None:
+        lcoe_rowInput.extend(add_rows)
+    card = style_inpCard_LCOE(header, component, lcoe_rowInput)
+    return card
+
+
+if __name__ == "__main__":
+    print("hi")
+

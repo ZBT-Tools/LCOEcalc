@@ -28,8 +28,8 @@ import plotly.graph_objects as go
 from scripts.lcoe_simple import multisystem_calculation
 from scripts.data_handler import store_data
 
-from scripts.gui_functions import styling_input_card_component, styling_generic_dropdown, styling_input_card_generic, \
-    fill_input_fields, read_input_fields, build_initial_collect
+from scripts.gui_functions import style_generic_dropdown, \
+    fill_input_fields, read_input_fields, build_initial_collect, style_inpCard_LCOE_comp, style_inpCard_LCOE
 
 # 1. Tool specific definitions & Initialization prior start
 # ----------------------------------------------------------------------------------------------------------------------
@@ -97,29 +97,29 @@ app.layout = dbc.Container([
                     # Menu with different drop down menus for preset selections, 'Calculate' Button
                     # Dropdown System Preset Selection
                     dbc.Row([
-                        dbc.Col(styling_generic_dropdown(id_name="dd_preset", label="System",
-                                                         elements=df_input["Systems"].columns[4:]),
+                        dbc.Col(style_generic_dropdown(id_name="dd_preset", label="System",
+                                                       elements=df_input["Systems"].columns[4:]),
                                 width=6, xl=4),
                         dbc.Col(html.P(df_input["Systems"].columns[4], id="txt_Preset_Selection"),
                                 width=12, xl=8)]),
                     # Dropdown Financial Preset Selection
                     dbc.Row([
-                        dbc.Col(styling_generic_dropdown(id_name="dd_Financial", label="Financial",
-                                                         elements=df_input["Financial"].columns[4:]),
+                        dbc.Col(style_generic_dropdown(id_name="dd_Financial", label="Financial",
+                                                       elements=df_input["Financial"].columns[4:]),
                                 width=6, xl=4),
                         dbc.Col(html.P(df_input["Financial"].columns[4], id="txt_Financial_Selection"),
                                 width=12, xl=8)]),
                     # Dropdown NH3 Fuel Cost Preset Selection
                     dbc.Row([
-                        dbc.Col(styling_generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3 Cost",
-                                                         elements=df_input["Fuel_NH3"].columns[4:]),
+                        dbc.Col(style_generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3 Cost",
+                                                       elements=df_input["Fuel_NH3"].columns[4:]),
                                 width=6, xl=4),
                         dbc.Col(html.P(df_input["Fuel_NH3"].columns[4], id="txt_NH3_fuel_cost_Preset_Selection"),
                                 width=12, xl=8)]),
                     # Dropdown NG Fuel Cost Preset Selection
                     dbc.Row([
-                        dbc.Col(styling_generic_dropdown(id_name="dd_NG_fuel_cost", label="NG",
-                                                         elements=df_input["Fuel_NG"].columns[4:]),
+                        dbc.Col(style_generic_dropdown(id_name="dd_NG_fuel_cost", label="NG",
+                                                       elements=df_input["Fuel_NG"].columns[4:]),
                                 width=6, xl=4),
                         dbc.Col(html.P(df_input["Fuel_NG"].columns[4], id="txt_NG_fuel_cost_Preset_Selection"),
                                 width=12, xl=8)]),
@@ -132,44 +132,44 @@ app.layout = dbc.Container([
                 dbc.AccordionItem(title="Energy Conversion System Settings", children=[
                     # Menu with input cards for each energy conversion system (HiPowAR, SOFC,ICE)
                     dbc.Row([
-                        dbc.Col(styling_input_card_component(component="HiPowAR", header="HiPowAR"), width=12),
-                        dbc.Col(styling_input_card_component("SOFC", header="SOFC",
-                                                             add_rows=[{"par": "stacklifetime_hr",
-                                                                        "title": "Stack Lifetime [hr]"},
-                                                                       {"par": "stackexchangecost_percCapex",
-                                                                        'title': "Stack Exchange Cost [% Capex]"}]),
+                        dbc.Col(style_inpCard_LCOE_comp(header="HiPowAR", component="HiPowAR"), width=12),
+                        dbc.Col(style_inpCard_LCOE_comp(header="SOFC", component="SOFC",
+                                                        add_rows=[{"par": "stacklifetime_hr",
+                                                                   "label": "Stack Lifetime [hr]"},
+                                                                  {"par": "stackexchangecost_percCapex",
+                                                                   'label': "Stack Exchange Cost [% Capex]"}]),
                                 width=12),
-                        dbc.Col(styling_input_card_component(component="ICE", header="Internal Combustion Eng."),
+                        dbc.Col(style_inpCard_LCOE_comp(header="Internal Combustion Eng.", component="ICE"),
                                 width=12)
                     ], )
                 ], ),
                 dbc.AccordionItem(title="Environmental Settings", children=[
                     dbc.Row([
-                        dbc.Col(styling_input_card_generic(component="Financials", header="Financials",
-                                                           rowinputs=[
-                                                               {'par': "discountrate_perc",
-                                                                'title': "Discount Rate [%]"},
-                                                               {'par': "lifetime_yr", 'title': "Lifetime [y]"},
-                                                               {'par': "operatinghoursyearly",
-                                                                'title': "Operating hours [hr/yr]"}]
-                                                           ), width=12),
+                        dbc.Col(style_inpCard_LCOE(header="Financials", component="Financials",
+                                                   specific_row_input=[
+                                                       {'par': "discountrate_perc",
+                                                        'label': "Discount Rate [%]"},
+                                                       {'par': "lifetime_yr", 'label': "Lifetime [y]"},
+                                                       {'par': "operatinghoursyearly",
+                                                        'label': "Operating hours [hr/yr]"}]
+                                                   ), width=12),
                         dbc.Col([
                             dbc.Row(dbc.Col(
-                                styling_input_card_generic(component='Fuel_NH3', header="NH3 Fuel Cost",
-                                                           rowinputs=[
-                                                               {'par': 'fuel_cost_Eur_per_kWh',
-                                                                'title': "NH3 cost [€/kWh]"},
-                                                               {'par': 'fuel_costIncrease_percent_per_year',
-                                                                'title': "NH3 cost increase [%/yr]"}]), width=12,
+                                style_inpCard_LCOE(header="NH3 Fuel Cost", component='Fuel_NH3',
+                                                   specific_row_input=[
+                                                       {'par': 'fuel_cost_Eur_per_kWh',
+                                                        'label': "NH3 cost [€/kWh]"},
+                                                       {'par': 'fuel_costIncrease_percent_per_year',
+                                                        'label': "NH3 cost increase [%/yr]"}]), width=12,
                             )),
 
                             dbc.Row(dbc.Col(
-                                styling_input_card_generic(component='Fuel_NG', header="NG Fuel Cost",
-                                                           rowinputs=[
-                                                               {'par': 'fuel_cost_Eur_per_kWh', 'title': "NG cost ["
-                                                                                                         "€/kWh]"},
-                                                               {'par': 'fuel_costIncrease_percent_per_year',
-                                                                'title': "NG cost increase [%/yr]"}]), width=12
+                                style_inpCard_LCOE(header="NG Fuel Cost", component='Fuel_NG',
+                                                   specific_row_input=[
+                                                       {'par': 'fuel_cost_Eur_per_kWh', 'label': "NG cost ["
+                                                                                                 "€/kWh]"},
+                                                       {'par': 'fuel_costIncrease_percent_per_year',
+                                                        'label': "NG cost increase [%/yr]"}]), width=12
                             ))
 
                         ])
@@ -197,7 +197,7 @@ app.layout = dbc.Container([
             dbc.Accordion([
                 dbc.AccordionItem(title='Nominal Results', children=[
                     dbc.Row(dbc.Col(
-                        dbc.Table(id="table_lcoe_nominal",striped=False, bordered=True)
+                        dbc.Table(id="table_lcoe_nominal", striped=False, bordered=True)
                     ))
                 ], ),
                 dbc.AccordionItem(title="LCOE Study Results", children=[
@@ -355,7 +355,7 @@ def cbf_quickstart_button_runNominalLCOE(*args):
     df_table = pd.DataFrame(columns=["LCOE [€/kWh]"])
     df_table.loc["System Name", "LCOE [€/kWh]"] = "LCOE [€/kWh]"
     for key, system in data.items():
-        df_table.loc[key, "LCOE [€/kWh]"] = round(system.df_results.loc["nominal", "LCOE"],3)
+        df_table.loc[key, "LCOE [€/kWh]"] = round(system.df_results.loc["nominal", "LCOE"], 3)
     df_table = df_table.reset_index(level=0)
 
     table = dbc.Table.from_dataframe(df_table, bordered=True, hover=True)
