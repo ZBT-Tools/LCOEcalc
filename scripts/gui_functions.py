@@ -224,6 +224,11 @@ def styling_input_card_LCOE_component(header: str,
                      {'par': "opex_Eur_kWh", "title": "Opex (no Fuel) [€/kWh]", "n_inputfields": 3},
                      {'par': "eta_perc", "title": "Efficiency [%]", "n_inputfields": 3}]
 
+    rws = styling_input_rows_LCOE_generic() #ToDo Continue here!
+
+
+
+
     if add_rows is not None:
         LCOE_rowInput.extend(add_rows)
     card = styling_input_card_LCOE_generic(component, header, LCOE_rowInput)
