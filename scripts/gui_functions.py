@@ -6,13 +6,13 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 
 
-def styling_input_row_generic(label: str,
-                              row_id_dict: dict,
-                              n_inputfields: int,
-                              field_id: dict,
-                              widths: list,
-                              fieldtype: list = None,
-                              disabled: list = None) -> dbc.Row:
+def style_inpRow_generic(label: str,
+                         row_id_dict: dict,
+                         n_inputfields: int,
+                         field_id: dict,
+                         widths: list,
+                         fieldtype: list = None,
+                         disabled: list = None) -> dbc.Row:
     """
     Creates dbc row with title and input fields.
     Example: Row title and 3 input fields -->    || Capex [%]   [...]  [...] [...] ||
@@ -46,13 +46,13 @@ def styling_input_row_generic(label: str,
 
     # # Add input-Fields
     for n in range(n_inputfields):
-        dct_id = row_id_dict
+        dct_id = row_id_dict.copy()
         fieldspec_id = {k: v[n] for (k, v) in field_id.items()}
         dct_id.update(fieldspec_id)  # Merge row and field id
 
         col = dbc.Col(dbc.Input(id=dct_id,
                                 type=fieldtype[n],
-                                disabled=[disabled[n]],
+                                disabled=disabled[n],
                                 size="sm"),
                       **widths[1])
 
@@ -63,8 +63,8 @@ def styling_input_row_generic(label: str,
     return dbc.Row(row_columns)
 
 
-def styling_input_rows_generic(identic_row_input_dict: dict,
-                               specific_row_input: list) -> list:
+def style_inpRows_generic(identic_row_input_dict: dict,
+                          specific_row_input: list) -> list:
     """
     Description:
         Creates list of styling_input_row_generic(...) Input rows.
@@ -83,14 +83,14 @@ def styling_input_rows_generic(identic_row_input_dict: dict,
         row_def = identic_row_input_dict
         row_def.update(specific_row)
 
-        rws.append(styling_input_row_generic(**row_def))
+        rws.append(style_inpRow_generic(**row_def))
 
     return rws
 
 
-def styling_input_card_generic(header: str,
-                               firstRow: list,
-                               rws: list) -> dbc.Card:
+def style_inpCard_generic(header: str,
+                          firstRow: list,
+                          rws: list) -> dbc.Card:
     """
     Description:
         Creates dbc.card with header and multiple input rows generate by styling_input_rows_generic()
@@ -110,7 +110,7 @@ def styling_input_card_generic(header: str,
     return card
 
 
-def styling_generic_dropdown(id_name: str, label: str, elements: list) -> dbc.DropdownMenu:
+def style_generic_dropdown(id_name: str, label: str, elements: list) -> dbc.DropdownMenu:
     """
     Creates dbc dropdown menu
 
@@ -128,12 +128,12 @@ def styling_generic_dropdown(id_name: str, label: str, elements: list) -> dbc.Dr
     return dropdown
 
 
-def test_styling_input_generic():
-    row = styling_input_row_generic(label="testrow",
-                                    row_id_dict={"type": "input", "rownumber": 1},
-                                    n_inputfields=3,
-                                    field_id={"fieldnumber": [1, 2, 3], "fielddescr": ["min", "max", "other"]},
-                                    widths=[{"width": 12, "xl": 6}, {"width": 4, "xl": 2}], )
+def test_style_inp_generic():
+    row = style_inpRow_generic(label="testrow",
+                               row_id_dict={"type": "input", "rownumber": 1},
+                               n_inputfields=3,
+                               field_id={"fieldnumber": [1, 2, 3], "fielddescr": ["min", "max", "other"]},
+                               widths=[{"width": 12, "xl": 6}, {"width": 4, "xl": 2}], )
 
     return row
 
@@ -165,19 +165,19 @@ def build_randomfill_input_fields(output: list) -> list:
     return return_lists
 
 
-def build_initial_collect(state_list: list):
+def build_initial_collect(state_list: list, exclude: list = None) -> pd.DataFrame:
     """
     Build function to create initial excel input table
     # ToDo get columns from context, add argument to exclude columns
     Input: One list from ctx.states_list, e.g. ctx.states_list[0]
     """
 
-    df = pd.DataFrame(columns=["component", "par", "parInfo"])
+    df = pd.DataFrame()
 
-    for dct in state_list:
-        data = {'component': dct["id"]["component"], 'par': dct["id"]["par"], 'parInfo': dct["id"]["parInfo"]}
+    for el in state_list:
+        data = el["id"].copy()
         try:
-            data.update({0: dct["value"]})
+            data.update({0: el["value"]})
         except KeyError:
             data.update({0: None})
         new_row = pd.Series(data)
@@ -187,7 +187,6 @@ def build_initial_collect(state_list: list):
 
 def fill_input_fields(input_str: str, df: pd.DataFrame, output: list) -> list:
     """
-    # ToDo generalize
     Input:
         input_str: Preset name, selected by dropdown menu
         df: Input data table (Excel definition file)
@@ -206,12 +205,11 @@ def fill_input_fields(input_str: str, df: pd.DataFrame, output: list) -> list:
     for li in output:
         return_list = []
         for el in li:
-            comp = el["id"]["component"]
-            par = el["id"]["par"]
-            parInfo = el["id"]["parInfo"]
-            try:
+            id = el["id"]
+            try:  # To find same id in df
+                # https://stackoverflow.com/questions/34157811/filter-a-pandas-dataframe-using-values-from-a-dict
                 return_list.append(
-                    df.loc[(df.component == comp) & (df.par == par) & (df.parInfo == parInfo), input_str].item())
+                    df.loc[(df[list(id)] == pd.Series(id)).all(axis=1), input_str].item())
             except AttributeError:
                 return_list.append(None)
             except ValueError:
@@ -222,9 +220,7 @@ def fill_input_fields(input_str: str, df: pd.DataFrame, output: list) -> list:
 
 def read_input_fields(state_selection: list) -> pd.DataFrame:
     """
-    # ToDo generalize
     state_selection: Callback State ctx.states_list[:], can be list or list of lists
-
     Function reads state_selection and writes data into DataFrame
     """
     # For multiple states in callback, 'state_selection' is list of lists [[state1],[state2],...]
@@ -236,9 +232,7 @@ def read_input_fields(state_selection: list) -> pd.DataFrame:
     df = pd.DataFrame()
     for state_list in state_selection:
         for el in state_list:
-            el_dict = {'component': el['id']['component'],
-                       'par': el['id']['par'],
-                       'parInfo': el['id']['parInfo']}
+            el_dict = el['id']
             try:
                 el_dict.update({'value': el['value']})
             except KeyError:
@@ -250,14 +244,14 @@ def read_input_fields(state_selection: list) -> pd.DataFrame:
     return df
 
 
-# Adjusted Styling Functions for LCOE TOOL
+# Adjusted Functions for LCOE TOOL
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-def styling_input_row_LCOE(label: str,
-                           component: str,
-                           par: str,
-                           n_inputfields: int) -> dbc.Row:
+def style_inpRow_LCOE(label: str,
+                      component: str,
+                      par: str,
+                      n_inputfields: int = 3) -> dbc.Row:
     """
     Modified version of styling_input_row_generic() with predefined values for field IDs and
     widths
@@ -283,38 +277,40 @@ def styling_input_row_LCOE(label: str,
         field_id = None
         widths = None
 
-    row = styling_input_row_generic(label=label,
-                                    row_id_dict=row_id_dict,
-                                    n_inputfields=n_inputfields,
-                                    field_id=field_id,
-                                    widths=widths)
+    row = style_inpRow_generic(label=label,
+                               row_id_dict=row_id_dict,
+                               n_inputfields=n_inputfields,
+                               field_id=field_id,
+                               widths=widths)
 
     return row
 
 
-def styling_input_rows_LCOE(identic_row_input_dict: dict,
-                            specific_row_input: list) -> list:
+def style_inpRows_LCOE(component: str,
+                       specific_row_input: list) -> list:
     """
     Modified version of styling_input_card_generic().
     No specific LCOE input inside function, but uses styling_input_row_LCOE_generic() to create
     input rows
 
-    :param identic_row_input_dict:  id parameter for all rows
+    :param component:               component shared for all input rows
     :param specific_row_input:      list with id dicts for each row
     :return:
     """
     rws = []
+    identic_row_input_dict = {"component": component}
     for specific_row in specific_row_input:
         row_def = identic_row_input_dict
         row_def.update(specific_row)
 
-        rws.append(styling_input_row_LCOE(**row_def))
+        rws.append(style_inpRow_LCOE(**row_def))
 
     return rws
 
 
-def styling_input_card_LCOE(header: str,
-                            rws: list) -> dbc.Card:
+def style_inpCard_LCOE(header: str,
+                       component: str,
+                       specific_row_input: list) -> dbc.Card:
     """
     Description:
         Modified version of styling_input_card_generic().
@@ -327,26 +323,28 @@ def styling_input_card_LCOE(header: str,
     # Specific LCOE Tool arguments
     # -----------------------------------------------------------------------
     # Define first row
-    fist_row = [dbc.Row([dbc.Col(width=12, xl=6),
-                         dbc.Col(dbc.Label("Nominal"), width=4, xl=2),
-                         dbc.Col(dbc.Label("Min"), width=4, xl=2),
-                         dbc.Col(dbc.Label("Max"), width=4, xl=2)
-                         ])]
+    row = [dbc.Row([dbc.Col(width=12, xl=6),
+                    dbc.Col(dbc.Label("Nominal"), width=4, xl=2),
+                    dbc.Col(dbc.Label("Min"), width=4, xl=2),
+                    dbc.Col(dbc.Label("Max"), width=4, xl=2)
+                    ])]
 
-    rows = fist_row.extend(rws)
+    rws = style_inpRows_LCOE(component=component, specific_row_input=specific_row_input)
+
+    row.extend(rws)
 
     # Create Card
     card = dbc.Card([
         dbc.CardHeader(header),
         dbc.CardBody(
-            rows
+            row
         )])
     return card
 
 
-def styling_input_card_LCOE_comp(header: str,
-                                 component: str,
-                                 add_rows: list = None) -> dbc.Card:
+def style_inpCard_LCOE_comp(header: str,
+                            component: str,
+                            add_rows: list = None) -> dbc.Card:
     """
     Description:
         Modified version of styling_input_card_generic() with reoccurring system component input
@@ -366,17 +364,11 @@ def styling_input_card_LCOE_comp(header: str,
                      {"label": "Opex (no Fuel) [€/kWh]", 'par': "opex_Eur_kWh", "n_inputfields": 3},
                      {"label": "Efficiency [%]", 'par': "eta_perc", "n_inputfields": 3}]
 
-    rws = styling_input_rows_LCOE(identic_row_input_dict={"component": component},
-                                  specific_row_input=lcoe_rowInput)
-
     if add_rows is not None:
-        add = styling_input_rows_LCOE(identic_row_input_dict={"component": component},
-                                      specific_row_input=add_rows)
-        lcoe_rowInput.extend(add)
-    card = styling_input_card_LCOE(header, lcoe_rowInput)
+        lcoe_rowInput.extend(add_rows)
+    card = style_inpCard_LCOE(header, component, lcoe_rowInput)
     return card
 
 
 if __name__ == "__main__":
     print("hi")
-    a = test_styling_input_row_generic()
