@@ -570,7 +570,7 @@ def cbf_dev_button_build_initialCollectInput(*args):
     Creates new DataFrame / excel table with all inputfields of types defined in callback above.
     """
     df = build_initial_collect(ctx.states_list[0])
-    df.to_pickle("input4.pkl")
+    #df.to_pickle("input4.pkl")
     df.to_excel("input4.xlsx")
 
     return "ok"

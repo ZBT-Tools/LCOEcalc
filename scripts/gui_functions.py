@@ -165,19 +165,19 @@ def build_randomfill_input_fields(output: list) -> list:
     return return_lists
 
 
-def build_initial_collect(state_list: list):
+def build_initial_collect(state_list: list, exclude: list = None) -> pd.DataFrame:
     """
     Build function to create initial excel input table
     # ToDo get columns from context, add argument to exclude columns
     Input: One list from ctx.states_list, e.g. ctx.states_list[0]
     """
 
-    df = pd.DataFrame(columns=["component", "par", "parInfo"])
+    df = pd.DataFrame()
 
-    for dct in state_list:
-        data = {'component': dct["id"]["component"], 'par': dct["id"]["par"], 'parInfo': dct["id"]["parInfo"]}
+    for el in state_list:
+        data = el["id"].copy()
         try:
-            data.update({0: dct["value"]})
+            data.update({0: el["value"]})
         except KeyError:
             data.update({0: None})
         new_row = pd.Series(data)
@@ -187,7 +187,6 @@ def build_initial_collect(state_list: list):
 
 def fill_input_fields(input_str: str, df: pd.DataFrame, output: list) -> list:
     """
-    # ToDo generalize
     Input:
         input_str: Preset name, selected by dropdown menu
         df: Input data table (Excel definition file)
@@ -250,7 +249,7 @@ def read_input_fields(state_selection: list) -> pd.DataFrame:
     return df
 
 
-# Adjusted Styling Functions for LCOE TOOL
+# Adjusted Functions for LCOE TOOL
 # ----------------------------------------------------------------------------------------------------------------------
 
 
@@ -330,10 +329,10 @@ def style_inpCard_LCOE(header: str,
     # -----------------------------------------------------------------------
     # Define first row
     row = [dbc.Row([dbc.Col(width=12, xl=6),
-                         dbc.Col(dbc.Label("Nominal"), width=4, xl=2),
-                         dbc.Col(dbc.Label("Min"), width=4, xl=2),
-                         dbc.Col(dbc.Label("Max"), width=4, xl=2)
-                         ])]
+                    dbc.Col(dbc.Label("Nominal"), width=4, xl=2),
+                    dbc.Col(dbc.Label("Min"), width=4, xl=2),
+                    dbc.Col(dbc.Label("Max"), width=4, xl=2)
+                    ])]
 
     rws = style_inpRows_LCOE(component=component, specific_row_input=specific_row_input)
 
@@ -378,4 +377,3 @@ def style_inpCard_LCOE_comp(header: str,
 
 if __name__ == "__main__":
     print("hi")
-
