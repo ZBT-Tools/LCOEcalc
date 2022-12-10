@@ -165,10 +165,9 @@ def build_randomfill_input_fields(output: list) -> list:
     return return_lists
 
 
-def build_initial_collect(state_list: list, exclude: list = None) -> pd.DataFrame:
+def build_initial_collect(state_list: list) -> pd.DataFrame:
     """
     Build function to create initial excel input table
-    # ToDo get columns from context, add argument to exclude columns
     Input: One list from ctx.states_list, e.g. ctx.states_list[0]
     """
 
