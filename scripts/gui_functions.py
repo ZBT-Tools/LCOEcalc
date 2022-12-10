@@ -205,12 +205,11 @@ def fill_input_fields(input_str: str, df: pd.DataFrame, output: list) -> list:
     for li in output:
         return_list = []
         for el in li:
-            comp = el["id"]["component"]
-            par = el["id"]["par"]
-            parInfo = el["id"]["parInfo"]
-            try:
+            id = el["id"]
+            try:  # To find same id in df
+                # https://stackoverflow.com/questions/34157811/filter-a-pandas-dataframe-using-values-from-a-dict
                 return_list.append(
-                    df.loc[(df.component == comp) & (df.par == par) & (df.parInfo == parInfo), input_str].item())
+                    df.loc[(df[list(id)] == pd.Series(id)).all(axis=1), input_str].item())
             except AttributeError:
                 return_list.append(None)
             except ValueError:
@@ -221,9 +220,7 @@ def fill_input_fields(input_str: str, df: pd.DataFrame, output: list) -> list:
 
 def read_input_fields(state_selection: list) -> pd.DataFrame:
     """
-    # ToDo generalize
     state_selection: Callback State ctx.states_list[:], can be list or list of lists
-
     Function reads state_selection and writes data into DataFrame
     """
     # For multiple states in callback, 'state_selection' is list of lists [[state1],[state2],...]
@@ -235,9 +232,7 @@ def read_input_fields(state_selection: list) -> pd.DataFrame:
     df = pd.DataFrame()
     for state_list in state_selection:
         for el in state_list:
-            el_dict = {'component': el['id']['component'],
-                       'par': el['id']['par'],
-                       'parInfo': el['id']['parInfo']}
+            el_dict = el['id']
             try:
                 el_dict.update({'value': el['value']})
             except KeyError:

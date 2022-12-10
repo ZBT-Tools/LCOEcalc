@@ -41,6 +41,7 @@ system_components = ["HiPowAR", "ICE", "SOFC"]
 # Input definition table with presets, excel table
 df_input = pd.read_excel("input/Dash_LCOE_ConfigurationV3.xlsx",
                          sheet_name=["Systems", "Financial", "Fuel_NH3", "Fuel_NG"])
+df_input_first_data_column = 5
 
 # Load images (issue with standard image load, due to png?!)
 # Fix: https://community.plotly.com/t/png-image-not-showing/15713/2
@@ -98,36 +99,41 @@ app.layout = dbc.Container([
                     # Dropdown System Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_preset", label="System",
-                                                       elements=df_input["Systems"].columns[4:]),
+                                                       elements=df_input["Systems"].columns[
+                                                                df_input_first_data_column:]),
                                 width=6, xl=4),
-                        dbc.Col(html.P(df_input["Systems"].columns[4], id="txt_Preset_Selection"),
-                                width=12, xl=8)]),
+                        dbc.Col(html.P(df_input["Systems"].columns[df_input_first_data_column],
+                                       id="txt_Preset_Selection"), width=12, xl=8)]),
                     # Dropdown Financial Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_Financial", label="Financial",
-                                                       elements=df_input["Financial"].columns[4:]),
+                                                       elements=df_input["Financial"].columns[
+                                                                df_input_first_data_column:]),
                                 width=6, xl=4),
-                        dbc.Col(html.P(df_input["Financial"].columns[4], id="txt_Financial_Selection"),
-                                width=12, xl=8)]),
+                        dbc.Col(html.P(df_input["Financial"].columns[df_input_first_data_column],
+                                       id="txt_Financial_Selection"), width=12, xl=8)]),
                     # Dropdown NH3 Fuel Cost Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3 Cost",
-                                                       elements=df_input["Fuel_NH3"].columns[4:]),
+                                                       elements=df_input["Fuel_NH3"].columns[
+                                                                df_input_first_data_column:]),
                                 width=6, xl=4),
-                        dbc.Col(html.P(df_input["Fuel_NH3"].columns[4], id="txt_NH3_fuel_cost_Preset_Selection"),
-                                width=12, xl=8)]),
+                        dbc.Col(html.P(df_input["Fuel_NH3"].columns[df_input_first_data_column],
+                                       id="txt_NH3_fuel_cost_Preset_Selection"), width=12, xl=8)]),
                     # Dropdown NG Fuel Cost Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_NG_fuel_cost", label="NG",
-                                                       elements=df_input["Fuel_NG"].columns[4:]),
+                                                       elements=df_input["Fuel_NG"].columns[
+                                                                df_input_first_data_column:]),
                                 width=6, xl=4),
-                        dbc.Col(html.P(df_input["Fuel_NG"].columns[4], id="txt_NG_fuel_cost_Preset_Selection"),
-                                width=12, xl=8)]),
+                        dbc.Col(html.P(df_input["Fuel_NG"].columns[df_input_first_data_column],
+                                       id="txt_NG_fuel_cost_Preset_Selection"), width=12, xl=8)]),
                     html.Hr(),
                     dbc.Row([
                         dbc.Col(dbc.Button("Run Nominal", id="bt_run_nominal", size="sm"), width=3),
-                        dbc.Col(dbc.Button("Run Study", id="bt_run_study", size="sm"), width=3)
-                    ])
+                        dbc.Col(dbc.Button("Run Study", id="bt_run_study", size="sm"), width=3),
+                        dbc.Col(dbc.Spinner(html.Div(id="loading"), color="success"), width=2)
+                    ], align="center")
                 ]),
                 dbc.AccordionItem(title="Energy Conversion System Settings", children=[
                     # Menu with input cards for each energy conversion system (HiPowAR, SOFC,ICE)
@@ -231,7 +237,8 @@ app.layout = dbc.Container([
     Output({'type': 'input', 'component': 'HiPowAR', 'par': ALL, 'parInfo': ALL}, 'value'),
     Output({'type': 'input', 'component': 'SOFC', 'par': ALL, 'parInfo': ALL}, 'value'),
     Output({'type': 'input', 'component': 'ICE', 'par': ALL, 'parInfo': ALL}, 'value'),
-    [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_input["Systems"].columns[4:]))], )
+    [Input(f"dd_preset_{n}", "n_clicks") for n in
+     range(len(df_input["Systems"].columns[df_input_first_data_column:]))], )
 def cbf_quickstart_select_system_preset(*inp):
     """
     Description:
@@ -243,10 +250,10 @@ def cbf_quickstart_select_system_preset(*inp):
     - Output[1:]: System data --> data flieds
     """
     try:
-        selection_title = df_input["Systems"].columns[4:][int(ctx.triggered_id[-1])]
+        selection_title = df_input["Systems"].columns[df_input_first_data_column:][int(ctx.triggered_id[-1])]
     except TypeError:
         # At app initialization, callback is executed witout trigger id. Select newest definition
-        selection_title = df_input["Systems"].columns[4:][-1]
+        selection_title = df_input["Systems"].columns[df_input_first_data_column:][-1]
 
     return_lists = fill_input_fields(selection_title, df=df_input["Systems"], output=ctx.outputs_list[1:])
 
@@ -259,16 +266,17 @@ def cbf_quickstart_select_system_preset(*inp):
 @app.callback(
     Output("txt_Financial_Selection", "children"),
     Output({'type': 'input', 'component': 'Financials', 'par': ALL, 'parInfo': ALL}, 'value'),
-    [Input(f"dd_Financial_{n}", "n_clicks") for n in range(len(df_input["Financial"].columns[4:]))], )
+    [Input(f"dd_Financial_{n}", "n_clicks") for n in
+     range(len(df_input["Financial"].columns[df_input_first_data_column:]))], )
 def cbf_quickstart_select_financial(*inputs):
     """
     Same as for cbf_quickstart_select_system_preset
     """
     try:
-        selection_title = df_input["Financial"].columns[4:][int(ctx.triggered_id[-1])]
+        selection_title = df_input["Financial"].columns[df_input_first_data_column:][int(ctx.triggered_id[-1])]
     except TypeError:
         # At app initialization, callback is executed witout trigger id. Select newest definition
-        selection_title = df_input["Financial"].columns[4:][0]
+        selection_title = df_input["Financial"].columns[df_input_first_data_column:][0]
 
     return_lists = fill_input_fields(selection_title, df=df_input["Financial"], output=ctx.outputs_list[1])
 
@@ -281,16 +289,17 @@ def cbf_quickstart_select_financial(*inputs):
 @app.callback(
     Output("txt_NH3_fuel_cost_Preset_Selection", "children"),
     Output({'type': 'input', 'component': 'Fuel_NH3', 'par': ALL, 'parInfo': ALL}, 'value'),
-    [Input(f"dd_NH3_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NH3"].columns[4:]))])
+    [Input(f"dd_NH3_fuel_cost_{n}", "n_clicks") for n in
+     range(len(df_input["Fuel_NH3"].columns[df_input_first_data_column:]))])
 def cbf_quickstart_select_NH3fuel_preset(*inputs):
     """
     Same as for cbf_quickstart_select_system_preset
     """
     try:
-        selection_title = df_input["Fuel_NH3"].columns[4:][int(ctx.triggered_id[-1])]
+        selection_title = df_input["Fuel_NH3"].columns[df_input_first_data_column:][int(ctx.triggered_id[-1])]
     except TypeError:
         # At app initialization, callback is executed witout trigger id. Select newest definition
-        selection_title = df_input["Fuel_NH3"].columns[4:][0]
+        selection_title = df_input["Fuel_NH3"].columns[df_input_first_data_column:][0]
     return_lists = fill_input_fields(selection_title, df=df_input["Fuel_NH3"], output=ctx.outputs_list[1])
 
     output = [selection_title]
@@ -302,16 +311,17 @@ def cbf_quickstart_select_NH3fuel_preset(*inputs):
 @app.callback(
     Output("txt_NG_fuel_cost_Preset_Selection", "children"),
     Output({'type': 'input', 'component': 'Fuel_NG', 'par': ALL, 'parInfo': ALL}, 'value'),
-    [Input(f"dd_NG_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NG"].columns[4:]))])
+    [Input(f"dd_NG_fuel_cost_{n}", "n_clicks") for n in
+     range(len(df_input["Fuel_NG"].columns[df_input_first_data_column:]))])
 def cbf_quickstart_select_NGfuel_preset(*inputs):
     """
     Same as for cbf_quickstart_select_system_preset
     """
     try:
-        selection_title = df_input["Fuel_NG"].columns[4:][int(ctx.triggered_id[-1])]
+        selection_title = df_input["Fuel_NG"].columns[df_input_first_data_column:][int(ctx.triggered_id[-1])]
     except TypeError:
         # At app initialization, callback is executed witout trigger id. Select newest definition
-        selection_title = df_input["Fuel_NG"].columns[4:][0]
+        selection_title = df_input["Fuel_NG"].columns[df_input_first_data_column:][0]
 
     return_lists = fill_input_fields(selection_title, df=df_input["Fuel_NG"], output=ctx.outputs_list[1])
 
@@ -366,6 +376,7 @@ def cbf_quickstart_button_runNominalLCOE(*args):
 @app.callback(
     Output("flag_sensitivity_calculation_done", "children"),
     Output("storage", "data"),
+    Output("loading", "children"),
     Input("bt_run_study", "n_clicks"),
     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
     prevent_initial_call=True)
@@ -396,7 +407,7 @@ def cbf_quickstart_button_runSensitivityLCOE(*args):
     # -----------------------------------------------------------------------------------------------------------------
     # Create json file:
     data = store_data(systems)
-    return [datetime.datetime.now(), data]
+    return [datetime.datetime.now(), data, None]
 
 
 @app.callback(
@@ -570,13 +581,13 @@ def cbf_dev_button_build_initialCollectInput(*args):
     Creates new DataFrame / excel table with all inputfields of types defined in callback above.
     """
     df = build_initial_collect(ctx.states_list[0])
-    #df.to_pickle("input4.pkl")
+    # df.to_pickle("input4.pkl")
     df.to_excel("input4.xlsx")
 
     return "ok"
 
 
-# # INFO: Function is commented, because there would be an output overlap. Decomment when building GUI!
+# # INFO: Function is commented, because there would be an output overlap. Decoment when building GUI!
 # @app.callback(
 #     Output({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
 #     Input("bt_fill", "n_clicks"),
