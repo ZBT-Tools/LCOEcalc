@@ -1,4 +1,4 @@
-from gui_functions import style_inpRow_generic
+from scripts.gui_functions import style_inpRow_generic
 import dash_bootstrap_components as dbc
 
 
@@ -20,12 +20,8 @@ def style_inpRows_simpleapp(specific_row_input: list) -> list:
     :return:
     """
     rws = []
-    identic_row_input_dict = {"type": "input"}
     for specific_row in specific_row_input:
-        row_def = identic_row_input_dict
-        row_def.update(specific_row)
-
-        rws.append(style_inpRow_simpleapp(**row_def))
+        rws.append(style_inpRow_simpleapp(**specific_row))
     return rws
 
 
