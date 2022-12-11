@@ -1,6 +1,6 @@
 import pandas as pd
 from dataclasses import dataclass
-from scripts.data_handler import InputHandlerLCOE
+from scripts.data_handler import DataHandlerLCOE
 
 
 @dataclass
@@ -75,7 +75,7 @@ def multisystem_calculation(df: pd.DataFrame, system_names: list, fuel_names: li
                            (df.component == fuel), :]
 
             # Init Input Handler
-            inputhandler = InputHandlerLCOE(df=dfred, dc=DataclassLCOEsimpleInput,
+            inputhandler = DataHandlerLCOE(df=dfred, dc=DataclassLCOEsimpleInput,
                                             dict_additionalNames={"name": system, "fuel_name": fuel})
             inputhandler.create_input_sets(mode=mode)
             inputhandler.submit_job(lcoe)
