@@ -316,7 +316,6 @@ def style_inpCard_LCOE(header: str,
         Creates dbc.card with header and multiple input rows generate by styling_input_rows_LCOE()
     Input:
         header:     card title
-        firstRow:   definition of first row
         rws:        list of input rows
     """
     # Specific LCOE Tool arguments
