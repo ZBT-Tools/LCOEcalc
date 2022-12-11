@@ -19,6 +19,8 @@ import dash
 from dash import Input, Output, dcc, html, ctx, State, ALL
 import dash_bootstrap_components as dbc
 import base64
+
+from docutils.nodes import header
 from flask_caching import Cache
 import pickle
 import jsonpickle
@@ -26,13 +28,12 @@ import datetime
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
-from scripts.gui_functions import read_input_fields
+from scripts.gui_functions import read_input_fields, style_studySettingsCard
 from scripts.data_handler import store_data
 
 from scripts.simple_app_gui_functions import style_inpCard_simpleapp
 from scripts.simple_app_data_handler import DataHandlerSimpleApp
 from scripts.multiplication import DataclassMultiplicationInput, multiplication
-
 
 # 1. Tool specific definitions & Initialization prior start
 # ----------------------------------------------------------------------------------------------------------------------
@@ -42,7 +43,11 @@ zbt_png = 'img/logo-zbt-duisburg.png'
 zbt_base64 = base64.b64encode(open(zbt_png, 'rb').read()).decode('ascii')
 
 # App initialization
-app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
+# As GUI for study is build inside callback, checklist id is not available initially, therefore...
+# suppress_callback_exceptions=True
+app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP],suppress_callback_exceptions=True)
+
+
 
 # Force Plotly to clear local cache at each start
 # Resolves development issue: cached data used instead of updated code
@@ -84,7 +89,11 @@ app.layout = dbc.Container([
                                             {"label": "Parameter A", "ident": "a"},
                                             {"label": "Parameter B", "ident": "b"}]
                                         ), width=12)),
-            dbc.Row(dbc.Col(dbc.Button(children="run", id="run"), width=2))
+            dbc.Row([dbc.Col(dbc.Button(children="run", id="bt_run"), width=2),
+                     dbc.Col(dbc.Button("Run Study", id="bt_runstudy"), width=2)]),
+            html.Div(id="initStudyCard"),
+            html.Div(id="temp"),
+            dbc.Row(dbc.Col(dbc.Card(id="studyCard")))
         ], width=12, xl=4),
 
         # Visualization Column
@@ -105,7 +114,7 @@ app.layout = dbc.Container([
 
 @app.callback(
     Output("txt_result", "children"),
-    Input("run", "n_clicks"),
+    Input("bt_run", "n_clicks"),
     State({"type": "input", 'id': ALL}, 'value'),
     prevent_initial_call=True)
 def cbf__button_run(*args):
@@ -127,7 +136,7 @@ def cbf__button_run(*args):
 
     # 2. Initialize systems, prepare input-sets, perform calculations
     # ------------------------------------------------------------------------------------------------------------------
-    datahandler = DataHandlerSimpleApp(df,DataclassMultiplicationInput,parID="id")
+    datahandler = DataHandlerSimpleApp(df, DataclassMultiplicationInput, parID="id")
     datahandler.create_input_sets()
     datahandler.submit_job()
 
@@ -136,6 +145,29 @@ def cbf__button_run(*args):
     result = datahandler.df_results["result"].item()
 
     return result
+
+
+@app.callback(
+    Output("studyCard", "children"),
+    Input("initStudyCard", "children"),
+    State({"type": "input", 'id': ALL}, 'value'))
+def cbf_study_init(*inp):
+    df = read_input_fields(ctx.states_list[0])
+    pars = [{"label": l, "value": l} for l in df.id]
+    card = style_studySettingsCard(header="Sensitivity Study", pars=pars)
+    return card
+
+
+@app.callback(
+    Output("temp", "children"),
+    Input("bt_runstudy", "n_clicks"),
+    State("checklist", "value"),
+    prevent_initial_call=True)
+def cbf_study_read(*inp):
+    # List of selected variables
+    variation_pars = inp[1]
+
+    return variation_pars
 
 
 # @app.callback(

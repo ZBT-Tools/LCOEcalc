@@ -3,6 +3,7 @@
 import random
 
 import dash_bootstrap_components as dbc
+from dash import html
 import pandas as pd
 
 
@@ -106,6 +107,39 @@ def style_inpCard_generic(header: str,
         dbc.CardHeader(header),
         dbc.CardBody(
             rows
+        )])
+    return card
+
+
+def style_studySettingsCard(header: str, pars) -> dbc.Card:
+    """
+    Description:
+        Creates dbc.Card with header and study settings
+    Input:
+        header:     card title
+
+    """
+
+    row1 = style_inpRow_generic(label="Variation [%]",
+                                row_id_dict={"type": "studyInput", "par": "globalVar_perc"},
+                                n_inputfields=1,
+                                field_id={},
+                                widths=[{"width": 12, "xl": 6}, {"width": 12, "xl": 6}])
+
+    # Create Variable Checklist to incorporate into variation study
+    checklist = dbc.Row(dbc.Col(html.Div(
+        [
+            dbc.Label("Select Parameter for Study"),
+            dbc.Checklist(options=pars,
+                          id="checklist")]
+    )))
+
+
+    # Create Card
+    card = dbc.Card([
+        dbc.CardHeader(header),
+        dbc.CardBody(
+            [row1, checklist]
         )])
     return card
 
