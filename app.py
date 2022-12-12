@@ -1,5 +1,4 @@
-""" LCOE Calculation Tool
-
+""" Simple App, Demonstrator for gui-functions, data-handler functions
 Description ....
 
 
@@ -14,27 +13,16 @@ Code Structure:
     - App layout definition
 
 """
-import pandas as pd
 import dash
 from dash import Input, Output, dcc, html, ctx, State, ALL
 import dash_bootstrap_components as dbc
 import base64
-
-# from docutils.nodes import header
 from flask_caching import Cache
-import pickle
-import jsonpickle
-import datetime
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
 import plotly.express as px
-
 from scripts.gui_functions import read_input_fields, style_studySettingsCard
-from scripts.data_handler import store_data
-
 from scripts.simple_app_gui_functions import style_inpCard_simpleapp
 from scripts.simple_app_data_handler import DataHandlerSimpleApp
-from scripts.multiplication import DataclassMultiplicationInput, multiplication
+from scripts.multiplication import DataclassMultiplicationInput
 
 # 1. Tool specific definitions & Initialization prior start
 # ----------------------------------------------------------------------------------------------------------------------
@@ -109,8 +97,6 @@ app.layout = dbc.Container([
 # Callback Functions, app specific
 # --------------------------------------------------------------
 # --------------------------------------------------------------
-
-
 @app.callback(
     Output("txt_result", "children"),
     Input("bt_run", "n_clicks"),
@@ -151,7 +137,7 @@ def cbf_nominal_run(*args):
     State({"type": "input", 'id': ALL}, 'value'))
 def cbf_study_init(*inp):
     df = read_input_fields(ctx.states_list[0])
-    pars = [{"label": l, "value": l} for l in df.id]
+    pars = [{"label": label, "value": label} for label in df.id]
     card = style_studySettingsCard(header="Sensitivity Study", pars=pars)
     return card
 
