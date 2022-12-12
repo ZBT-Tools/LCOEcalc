@@ -6,7 +6,7 @@ from scripts.multiplication import multiplication
 
 class DataHandlerSimpleApp(DataHandler):
 
-    def create_input_sets(self) -> pd.DataFrame:
+    def create_input_sets(self,mode: str = "nominal", studypar = None) -> pd.DataFrame:
         """
         Single nominal input set
         :return:
@@ -17,6 +17,17 @@ class DataHandlerSimpleApp(DataHandler):
         # Add nominal input set
         for key, val in self.dict_var_par.items():
             df.loc["nominal", key] = val[0]
+
+        if mode == "study":
+            df2 = pd.DataFrame(columns=[key for key, val in self.dict_var_par.items()])
+            for varpar in studypar["checklist"]:
+                dataset_min = df.loc["nominal"].to_dict()
+                dataset_max = df.loc["nominal"].to_dict()
+                dataset_min[varpar] = dataset_min[varpar] * (1 - studypar["variation_perc"]/100)
+                dataset_max[varpar] = dataset_max[varpar] * (1 + studypar["variation_perc"]/100)
+                df2 = pd.concat([df2, pd.DataFrame([dataset_max, dataset_min])])
+
+            df = pd.concat([df, df2])
 
         # Add additional column with dataclass inside
         df.loc[:, "dataclass"] = df.apply(lambda row: from_dict(data_class=self.dc, data=row.to_dict()), axis=1)

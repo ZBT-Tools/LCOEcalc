@@ -131,7 +131,7 @@ def style_studySettingsCard(header: str, pars) -> dbc.Card:
         [
             dbc.Label("Select Parameter for Study"),
             dbc.Checklist(options=pars,
-                          id="checklist")]
+                          id={"type": "studyInput", "par": "checklist"})]
     )))
 
 
