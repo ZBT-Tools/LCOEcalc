@@ -30,6 +30,7 @@ from scripts.data_handler import store_data
 from scripts.gui_functions import fill_input_fields, read_input_fields, build_initial_collect, style_generic_dropdown, \
     style_inpCard_LCOE_comp, style_inpCard_LCOE
 
+
 # 1. Tool specific definitions & Initialization prior start
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -40,7 +41,9 @@ system_components = ["HiPowAR", "ICE", "SOFC"]
 # Input definition table with presets, excel table
 df_input = pd.read_excel("input/Dash_LCOE_ConfigurationV3.xlsx",
                          sheet_name=["Systems", "Financial", "Fuel_NH3", "Fuel_NG"])
+
 first_clm = 5
+
 
 # Load images (issue with standard image load, due to png?!)
 # Fix: https://community.plotly.com/t/png-image-not-showing/15713/2
@@ -98,6 +101,7 @@ app.layout = dbc.Container([
                     # Dropdown System Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_preset", label="System",
+
                                                        elements=df_input["Systems"].columns[first_clm:]),
                                 width=6, xl=4),
                         dbc.Col(html.P(df_input["Systems"].columns[-1], id="txt_Preset_Selection"),
@@ -123,30 +127,38 @@ app.layout = dbc.Container([
                                 width=6, xl=4),
                         dbc.Col(html.P(df_input["Fuel_NG"].columns[-1], id="txt_NG_fuel_cost_Preset_Selection"),
                                 width=12, xl=8)]),
+
                     html.Hr(),
                     dbc.Row([
                         dbc.Col(dbc.Button("Run Nominal", id="bt_run_nominal", size="sm"), width=3),
                         dbc.Col(dbc.Button("Run Study", id="bt_run_study", size="sm"), width=3),
+
                         dbc.Col(dbc.Spinner(html.Div(id="loading-output"), color="success"), width=3, align="center")
                     ])
+
                 ]),
                 dbc.AccordionItem(title="Energy Conversion System Settings", children=[
                     # Menu with input cards for each energy conversion system (HiPowAR, SOFC,ICE)
                     dbc.Row([
-                        dbc.Col(style_inpCard_LCOE_comp(component="HiPowAR", header="HiPowAR"), width=12),
-                        dbc.Col(style_inpCard_LCOE_comp(header="SOFC", component= "SOFC",
+
+                        dbc.Col(style_inpCard_LCOE_comp(header="HiPowAR", component="HiPowAR"), width=12),
+                        dbc.Col(style_inpCard_LCOE_comp(header="SOFC", component="SOFC",
                                                         add_rows=[{"par": "stacklifetime_hr",
                                                                    "label": "Stack Lifetime [hr]"},
                                                                   {"par": "stackexchangecost_percCapex",
                                                                    'label': "Stack Exchange Cost [% Capex]"}]),
                                 width=12),
+
                         dbc.Col(style_inpCard_LCOE_comp(component="ICE", header="Internal Combustion Eng."),
+
                                 width=12)
                     ], )
                 ], ),
                 dbc.AccordionItem(title="Environmental Settings", children=[
                     dbc.Row([
+
                         dbc.Col(style_inpCard_LCOE(component="Financials", header="Financials",
+
                                                    specific_row_input=[
                                                        {'par': "discountrate_perc",
                                                         'label': "Discount Rate [%]"},
@@ -156,7 +168,8 @@ app.layout = dbc.Container([
                                                    ), width=12),
                         dbc.Col([
                             dbc.Row(dbc.Col(
-                                style_inpCard_LCOE(component='Fuel_NH3', header="NH3 Fuel Cost",
+
+                                style_inpCard_LCOE(header="NH3 Fuel Cost", component='Fuel_NH3',
                                                    specific_row_input=[
                                                        {'par': 'fuel_cost_Eur_per_kWh',
                                                         'label': "NH3 cost [€/kWh]"},
@@ -165,7 +178,7 @@ app.layout = dbc.Container([
                             )),
 
                             dbc.Row(dbc.Col(
-                                style_inpCard_LCOE(component='Fuel_NG', header="NG Fuel Cost",
+                                style_inpCard_LCOE(header="NG Fuel Cost", component='Fuel_NG',
                                                    specific_row_input=[
                                                        {'par': 'fuel_cost_Eur_per_kWh', 'label': "NG cost ["
                                                                                                  "€/kWh]"},
@@ -232,7 +245,9 @@ app.layout = dbc.Container([
     Output({'type': 'input', 'component': 'HiPowAR', 'par': ALL, 'parInfo': ALL}, 'value'),
     Output({'type': 'input', 'component': 'SOFC', 'par': ALL, 'parInfo': ALL}, 'value'),
     Output({'type': 'input', 'component': 'ICE', 'par': ALL, 'parInfo': ALL}, 'value'),
+
     [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_input["Systems"].columns[first_clm:]))], )
+
 def cbf_quickstart_select_system_preset(*inp):
     """
     Description:
@@ -244,6 +259,7 @@ def cbf_quickstart_select_system_preset(*inp):
     - Output[1:]: System data --> data flieds
     """
     try:
+
         selection_title = df_input["Systems"].columns[first_clm:][int(ctx.triggered_id[-1])]
     except TypeError:
         # At app initialization, callback is executed witout trigger id. Select newest definition
@@ -292,6 +308,7 @@ def cbf_quickstart_select_NH3fuel_preset(*inputs):
     except TypeError:
         # At app initialization, callback is executed witout trigger id. Select newest definition
         selection_title = df_input["Fuel_NH3"].columns[first_clm:][-1]
+
     return_lists = fill_input_fields(selection_title, df=df_input["Fuel_NH3"], output=ctx.outputs_list[1])
 
     output = [selection_title]
@@ -572,13 +589,13 @@ def cbf_dev_button_build_initialCollectInput(*args):
     Creates new DataFrame / excel table with all inputfields of types defined in callback above.
     """
     df = build_initial_collect(ctx.states_list[0])
-    df.to_pickle("input4.pkl")
+    # df.to_pickle("input4.pkl")
     df.to_excel("input4.xlsx")
 
     return "ok"
 
 
-# # INFO: Function is commented, because there would be an output overlap. Decomment when building GUI!
+# # INFO: Function is commented, because there would be an output overlap. Decoment when building GUI!
 # @app.callback(
 #     Output({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
 #     Input("bt_fill", "n_clicks"),
