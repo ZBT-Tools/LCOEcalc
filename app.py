@@ -145,7 +145,6 @@ def cbf_nominal_run(*args):
 
     return f"Result of multiplication: {result}"
 
-
 @app.callback(
     Output("studyCard", "children"),
     Input("initStudyCard", "children"),
