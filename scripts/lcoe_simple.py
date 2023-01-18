@@ -76,7 +76,7 @@ def multisystem_calculation(df: pd.DataFrame, system_names: list, fuel_names: li
 
             # Init Input Handler
             inputhandler = DataHandlerLCOE(df=dfred, dc=DataclassLCOEsimpleInput,
-                                            dict_additionalNames={"name": system, "fuel_name": fuel})
+                                           dict_additionalNames={"name": system, "fuel_name": fuel})
             inputhandler.create_input_sets(mode=mode)
             inputhandler.submit_job(lcoe)
             dict_systems.update({f"{system}_{fuel[5:]}": inputhandler})

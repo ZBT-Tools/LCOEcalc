@@ -1,9 +1,8 @@
 """ LCOE Calculation Tool
 
-Description ....
+Description
 
-
-# To Do
+# Ideas
     - Show Graphs at website startup. therefore initialize storage with default system data.
 
 Code Structure:
@@ -95,6 +94,13 @@ app.layout = dbc.Container([
     dbc.Row([
         # Setting Column
         dbc.Col([
+            dcc.Markdown('''
+                        #### HiPowAR
+                        HIGHLY EFFICIENT POWER PRODUCTION BY GREEN AMMONIA TOTAL OXIDATION IN A MEMBRANE REACTOR
+                        
+                        https://www.hipowar.eu/home
+                        
+                        '''),
             dbc.Accordion([
                 dbc.AccordionItem(title="Preset Selection", children=[
                     # Menu with different drop down menus for preset selections, 'Calculate' Button
@@ -143,10 +149,11 @@ app.layout = dbc.Container([
 
                         dbc.Col(style_inpCard_LCOE_comp(header="HiPowAR", component="HiPowAR"), width=12),
                         dbc.Col(style_inpCard_LCOE_comp(header="SOFC", component="SOFC",
-                                                        add_rows=[{"par": "stacklifetime_hr",
-                                                                   "label": "Stack Lifetime [hr]"},
-                                                                  {"par": "stackexchangecost_percCapex",
-                                                                   'label': "Stack Exchange Cost [% Capex]"}]),
+                                                        # add_rows=[{"par": "stacklifetime_hr",
+                                                        #            "label": "Stack Lifetime [hr]"},
+                                                        #           {"par": "stackexchangecost_percCapex",
+                                                        #            'label': "Stack Exchange Cost [% Capex]"}]
+                                                        ),
                                 width=12),
 
                         dbc.Col(style_inpCard_LCOE_comp(component="ICE", header="Internal Combustion Eng."),
@@ -190,7 +197,16 @@ app.layout = dbc.Container([
                     ])
                 ]),
 
-                dbc.AccordionItem(title="About", children=[]),
+                dbc.AccordionItem(title="About", children=[
+                    dcc.Markdown('''
+                    Source: https://github.com/fkuschel/LCOEcalc
+                    
+                    Contact:
+                    - Florian Kuschel, ZBT Duisburg
+                    - https://www.linkedin.com/in/florian-kuschel/
+                    
+                    ''')
+                ]),
                 dbc.AccordionItem(title="Developer", children=[
                     dbc.Row([dbc.Col(dbc.Button("Build: Initial Data Collect", id="bt_collect"), width=2),
                              dbc.Col(dbc.Button("Build: Random Fill Fields", id="bt_fill"), width=2),
@@ -227,8 +243,8 @@ app.layout = dbc.Container([
                         dbc.Col([
                             dcc.Graph(id='lcoe-graph-sensitivity')])
                     ])
-                ], ),
-            ], always_open=True)
+                ]),
+            ], active_item = ["item-0", "item-1"], always_open=True)
         ], width=12, xl=8)
 
     ])
@@ -344,7 +360,8 @@ def cbf_quickstart_select_NGfuel_preset(*inputs):
     Output("table_lcoe_nominal", "children"),
     Input("bt_run_nominal", "n_clicks"),
     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': 'nominal'}, 'value'),
-    prevent_initial_call=True)
+    prevent_initial_call=True
+)
 def cbf_quickstart_button_runNominalLCOE(*args):
     """
     Input:
@@ -387,7 +404,8 @@ def cbf_quickstart_button_runNominalLCOE(*args):
     Output("loading-output","children"),
     Input("bt_run_study", "n_clicks"),
     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
-    prevent_initial_call=True)
+    prevent_initial_call=True
+)
 def cbf_quickstart_button_runSensitivityLCOE(*args):
     """
     Input:
@@ -511,7 +529,7 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
 
     colordict = {"HiPowAR_NH3": 'rgb(160,7,97)', "SOFC_NH3": 'lightseagreen', "ICE_NH3": 'lightskyblue'}
 
-    fig = make_subplots(rows=1, cols=2, shared_yaxes=True,
+    fig = make_subplots(rows=1, cols=1, shared_yaxes=True,
                         # x_title='Your master x-title',
                         y_title='LOEC [€/kW]',
                         subplot_titles=('System Sensitivity', 'Environment Sensitivity'))
