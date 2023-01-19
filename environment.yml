@@ -1,0 +1,20 @@
+name: LCOEcalc
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.11
+  - dash>=2.7.1
+  - pandas
+  - plotly
+  - numpy
+  - setuptools
+  - dash-bootstrap-components
+  - flask-caching
+  - jsonpickle
+  - openpyxl
+  - scipy
+  - matplotlib
+  - pip
+  - pip:
+    - dacite
