@@ -13,6 +13,8 @@ Code Structure:
     - App layout definition
 
 """
+import logging
+import logging.config
 import pandas as pd
 import dash
 from dash import Input, Output, dcc, html, ctx, State, ALL
@@ -28,6 +30,11 @@ from scripts.lcoe_simple import multisystem_calculation
 from scripts.data_handler import store_data
 from scripts.gui_functions import fill_input_fields, read_input_fields, build_initial_collect, style_generic_dropdown, \
     style_inpCard_LCOE_comp, style_inpCard_LCOE
+
+
+# Logging
+logging.config.fileConfig('logging.conf', disable_existing_loggers=False)
+logger = logging.getLogger(__name__)
 
 
 # 1. Tool specific definitions & Initialization prior start
@@ -395,6 +402,8 @@ def cbf_quickstart_button_runNominalLCOE(*args):
 
     table = dbc.Table.from_dataframe(df_table, bordered=True, hover=True)
 
+    logger.info('Successfull nominal calculation')
+
     return table.children
 
 
@@ -445,6 +454,9 @@ def cbf_lcoeStudyResults_plot_NH3_update(inp, state):
     """
     Todo
     """
+
+    logger.info('Start sensitivity study')
+
     # Read results from storage
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
@@ -469,6 +481,9 @@ def cbf_lcoeStudyResults_plot_NH3_update(inp, state):
         title="Levelized Cost of Electricity - Green Ammonia",
         # xaxis_title="",
         yaxis_title="LCOE [€/kW]")
+
+    logger.info('Finished sensitivity study')
+
     return fig
 
 
@@ -661,7 +676,7 @@ def cbf_dev_button_init(inp, *args):
     # Collect data of input fields in dataframe
     df = read_input_fields(ctx.states_list[0])
     data = multisystem_calculation(df, system_components, ["Fuel_NH3", "Fuel_NG"], "all_minmax")
-    print("ok")
+
 
 
 if __name__ == "__main__":

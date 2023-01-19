@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 
 import pickle
@@ -8,7 +9,8 @@ from statistics import median
 from itertools import product
 from dacite import from_dict
 
-
+# Logging
+logger = logging.getLogger(__name__)
 def store_data(data):
     """
     # https://github.com/jsonpickle/jsonpickle, as json.dumps can only handle simple variables, no objects, DataFrames..
@@ -85,6 +87,7 @@ class DataHandler(ABC):
         :return:
         """
 
+        logger.debug("Run calculations")
         df[resultcolumn] = df[inputcolumn].apply(func)
 
         if removeInputcolumn:
