@@ -61,7 +61,7 @@ zbt_png = 'img/logo-zbt-duisburg.png'
 zbt_base64 = base64.b64encode(open(zbt_png, 'rb').read()).decode('ascii')
 
 # App initialization
-app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
 
 # Force Plotly to clear local cache at each start
