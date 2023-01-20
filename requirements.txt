@@ -1,6 +1,8 @@
-dash
-pandas
-plotly
-jsonpickle
-dacite
-setuptools
+setuptools==66.1.0
+pandas==1.5.3
+plotly==5.12.0
+dash==2.7.1
+jsonpickle==3.0.1
+dataclasses==0.6
+dacite==1.7.0
+openpyxl
