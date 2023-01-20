@@ -13,14 +13,14 @@ Code Structure:
     - App layout definition
 
 """
-import logging
+# import logging
 import logging.config
 import pandas as pd
 import dash
 from dash import Input, Output, dcc, html, ctx, State, ALL
 import dash_bootstrap_components as dbc
 import base64
-from flask_caching import Cache
+# from flask_caching import Cache
 import pickle
 import jsonpickle
 import datetime
@@ -62,12 +62,13 @@ zbt_base64 = base64.b64encode(open(zbt_png, 'rb').read()).decode('ascii')
 
 # App initialization
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
+server = app.server
 
 # Force Plotly to clear local cache at each start
 # Resolves development issue: cached data used instead of updated code
 # https://community.plotly.com/t/how-to-easily-clear-cache/7069/2
-cache = Cache(app.server, config={"CACHE_TYPE": "simple"})
-cache.clear()
+# cache = Cache(app.server, config={"CACHE_TYPE": "simple"})
+# cache.clear()
 
 # 2. App layout
 # ----------------------------------------------------------------------------------------------------------------------
