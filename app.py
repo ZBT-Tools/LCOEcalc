@@ -225,7 +225,9 @@ app.layout = dbc.Container([
                 #     dbc.Row([html.Pre("Build: Update Collect Input", id="txt_build2")]),
                 #     dbc.Row([html.Pre("Debug Calculation:", id="txt_dev_button_init")])
                 # ]),
-            ], always_open=True)
+            ], always_open=True),
+            dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done")]),
+            dbc.Row([html.Pre("Sensitivity Calculation Done:", id="flag_sensitivity_calculation_done")])
         ], width=12, xl=4),
 
         # Visualization Column
@@ -402,7 +404,7 @@ def cbf_quickstart_button_runNominalLCOE(*args):
 
     logger.info('Successfull nominal calculation')
 
-    return table.children
+    return datetime.datetime.now(),table.children
 
 
 @app.callback(
