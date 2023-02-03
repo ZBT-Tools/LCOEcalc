@@ -1,7 +1,8 @@
 """ LCOE Calculation Tool
 
+Info
 Description
-
+    - Debugging/Developent functions and AccordeonItem are commented out.
 # Ideas
     - Show Graphs at website startup. therefore initialize storage with default system data.
 
@@ -59,12 +60,13 @@ zbt_base64 = base64.b64encode(open(zbt_png, 'rb').read()).decode('ascii')
 
 # App initialization
 app = dash.Dash(__name__)  # external_stylesheets=[dbc.themes.BOOTSTRAP])
+server = app.server
 
 # Force Plotly to clear local cache at each start
 # Resolves development issue: cached data used instead of updated code
 # https://community.plotly.com/t/how-to-easily-clear-cache/7069/2
-cache = Cache(app.server, config={"CACHE_TYPE": "simple"})
-cache.clear()
+# cache = Cache(app.server, config={"CACHE_TYPE": "simple"})
+# cache.clear()
 
 # 2. App layout
 # ----------------------------------------------------------------------------------------------------------------------
@@ -299,11 +301,6 @@ app.layout = dbc.Container([
     ])
 
 ], fluid=True)
-
-
-# Plot Template
-# --------------------------------------------------------------
-# --------------------------------------------------------------
 
 
 # Callback Functions, app specific
@@ -667,70 +664,70 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
     return fig
 
 
-@app.callback(
-    Output("txt_build1", "children"),
-    Input("bt_collect", "n_clicks"),
-    State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
-    prevent_initial_call=True)
-def cbf_dev_button_build_initialCollectInput(*args):
-    """
-    Creates new DataFrame / excel table with all inputfields of types defined in callback above.
-    """
-    df = build_initial_collect(ctx.states_list[0])
-    # df.to_pickle("input4.pkl")
-    df.to_excel("input4.xlsx")
-
-    return "ok"
-
-
-# # INFO: Function is commented, because there would be an output overlap. Decoment when building GUI!
 # @app.callback(
-#     Output({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
-#     Input("bt_fill", "n_clicks"),
+#     Output("txt_build1", "children"),
+#     Input("bt_collect", "n_clicks"),
 #     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
 #     prevent_initial_call=True)
-# def cbf_dev_button_build_randomFillFields(*args):
+# def cbf_dev_button_build_initialCollectInput(*args):
 #     """
-#     Fill all fields of type 'input' with random numbers
+#     Creates new DataFrame / excel table with all inputfields of types defined in callback above.
 #     """
-#     returnvalues = build_randomfill_input_fields(ctx.states_list[0])
+#     df = build_initial_collect(ctx.states_list[0])
+#     # df.to_pickle("input4.pkl")
+#     df.to_excel("input4.xlsx")
 #
-#     return returnvalues
-
-@app.callback(
-    Output("txt_build2", "children"), Input("bt_update_collect", "n_clicks"),
-    State({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
-    State({'type': 'input_SOFC', 'index': ALL}, 'value'),
-    State({'type': 'input_ICE', 'index': ALL}, 'value'),
-    State({'type': 'input_Financials', 'index': ALL}, 'value'),
-    State({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
-    State({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
-    prevent_initial_call=True)
-def cbf_dev_button_build_updateCollectInput(inp, *args):
-    """
-    Intention: Save new parameterset to table.
-
-    ToDo: Implement correctly!
-    """
-    df = pd.read_pickle("input4.pkl")
-    for key, val in ctx.states.items():
-        df.loc[key, inp] = val
-    df.to_pickle("input4_upd.pkl")
-    df.to_excel("input4_upd.xlsx")
-    return "ok"
-
-
-@app.callback(
-    Output("txt_dev_button_init", "children"), Input("bt_init", "n_clicks"),
-    State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
-    prevent_initial_call=True)
-def cbf_dev_button_init(inp, *args):
-    """
-    Debug parameter study
-    """
-    # Collect data of input fields in dataframe
-    df = read_input_fields(ctx.states_list[0])
-    data = multisystem_calculation(df, system_components, ["Fuel_NH3", "Fuel_NG"], "all_minmax")
+#     return "ok"
+#
+#
+# # # INFO: Function is commented, because there would be an output overlap. Decoment when building GUI!
+# # @app.callback(
+# #     Output({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
+# #     Input("bt_fill", "n_clicks"),
+# #     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
+# #     prevent_initial_call=True)
+# # def cbf_dev_button_build_randomFillFields(*args):
+# #     """
+# #     Fill all fields of type 'input' with random numbers
+# #     """
+# #     returnvalues = build_randomfill_input_fields(ctx.states_list[0])
+# #
+# #     return returnvalues
+#
+# @app.callback(
+#     Output("txt_build2", "children"), Input("bt_update_collect", "n_clicks"),
+#     State({'type': 'input_HiPowAR', 'index': ALL}, 'value'),
+#     State({'type': 'input_SOFC', 'index': ALL}, 'value'),
+#     State({'type': 'input_ICE', 'index': ALL}, 'value'),
+#     State({'type': 'input_Financials', 'index': ALL}, 'value'),
+#     State({'type': 'input_Fuel_NH3', 'index': ALL}, 'value'),
+#     State({'type': 'input_Fuel_NG', 'index': ALL}, 'value'),
+#     prevent_initial_call=True)
+# def cbf_dev_button_build_updateCollectInput(inp, *args):
+#     """
+#     Intention: Save new parameterset to table.
+#
+#     ToDo: Implement correctly!
+#     """
+#     df = pd.read_pickle("input4.pkl")
+#     for key, val in ctx.states.items():
+#         df.loc[key, inp] = val
+#     df.to_pickle("input4_upd.pkl")
+#     df.to_excel("input4_upd.xlsx")
+#     return "ok"
+#
+#
+# @app.callback(
+#     Output("txt_dev_button_init", "children"), Input("bt_init", "n_clicks"),
+#     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
+#     prevent_initial_call=True)
+# def cbf_dev_button_init(inp, *args):
+#     """
+#     Debug parameter study
+#     """
+#     # Collect data of input fields in dataframe
+#     df = read_input_fields(ctx.states_list[0])
+#     data = multisystem_calculation(df, system_components, ["Fuel_NH3", "Fuel_NG"], "all_minmax")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,11 @@
+gunicorn
 dash
+dash_bootstrap_components
 pandas
 plotly
 jsonpickle
 dacite
 setuptools
 dash-bootstrap-templates
+openpyxl
+
