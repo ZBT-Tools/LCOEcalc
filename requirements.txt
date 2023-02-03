@@ -4,3 +4,4 @@ plotly
 jsonpickle
 dacite
 setuptools
+dash-bootstrap-templates

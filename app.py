@@ -31,11 +31,9 @@ from scripts.data_handler import store_data
 from scripts.gui_functions import fill_input_fields, read_input_fields, build_initial_collect, style_generic_dropdown, \
     style_inpCard_LCOE_comp, style_inpCard_LCOE
 
-
 # Logging
 logging.config.fileConfig('logging.conf', disable_existing_loggers=False)
 logger = logging.getLogger(__name__)
-
 
 # 1. Tool specific definitions & Initialization prior start
 # ----------------------------------------------------------------------------------------------------------------------
@@ -50,18 +48,17 @@ df_input = pd.read_excel("input/Dash_LCOE_ConfigurationV3.xlsx",
 
 first_clm = 5
 
-
 # Load images (issue with standard image load, due to png?!)
 # Fix: https://community.plotly.com/t/png-image-not-showing/15713/2
 hipowar_png = 'img/Logo_HiPowAR.png'
 hipowar_base64 = base64.b64encode(open(hipowar_png, 'rb').read()).decode('ascii')
 eu_png = 'img/EU_Logo.png'
 eu_base64 = base64.b64encode(open(eu_png, 'rb').read()).decode('ascii')
-zbt_png = 'img/logo-zbt-duisburg.png'
+zbt_png = 'img/ZBT_Logo_RGB_B_L-QUADRAT.jpg'
 zbt_base64 = base64.b64encode(open(zbt_png, 'rb').read()).decode('ascii')
 
 # App initialization
-app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__)  # external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 # Force Plotly to clear local cache at each start
 # Resolves development issue: cached data used instead of updated code
@@ -78,6 +75,31 @@ cache.clear()
 #  that ensures it takes up the correct amount of horizontal space."
 #  https://getbootstrap.com/docs/5.0/utilities/spacing/
 
+# Figure template
+custom_template = {
+    "layout": go.Layout(
+        plot_bgcolor="#fbf5f9",
+        paper_bgcolor="#fbf5f9",
+    )
+}
+empty_template = {"layout": {"xaxis": {"visible": False},
+                             "yaxis": {"visible": False},
+                             "annotations": [{
+                                 "text": "Please select v and m",
+                                 "xref": "paper",
+                                 "yref": "paper",
+                                 "showarrow": False,
+                                 "font": {
+                                     "size": 28
+                                 }
+                             }],
+                             "plot_bgcolor":"#fbf5f9",
+                             "paper_bgcolor":"#fbf5f9"
+
+                             }}
+
+empty_fig = go.Figure()
+empty_fig.update_layout(template=empty_template)
 
 app.layout = dbc.Container([
     # Storage definition
@@ -89,10 +111,13 @@ app.layout = dbc.Container([
     dcc.Store(id='storage', storage_type='memory'),
 
     # Header Row with title & logos
-    dbc.Row([dbc.Col(html.H1("HiPowAR LCOE Tool"), width=12, xl=3),
-             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(hipowar_base64), width=100), width=12, xl=3),
-             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(eu_base64), width=300), width=12, xl=3),
-             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(zbt_base64), width=250), width=12, xl=3)]),
+    dbc.Row([dbc.Col(html.H2(["HiPowAR", html.Br() ,"Electricity Generation Costs Calculation"]), width=12, xl={"size": 4}),
+             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(hipowar_base64), width=100),
+                     width=12, xl={"size": 2}, align="center"),
+             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(eu_base64), width=300),
+                     width=12, xl=2, align="center"),
+             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(zbt_base64), width=250),
+                     width=12, xl={"size": 2,"offset":2}, align="center")]),
     html.Hr(),
 
     # Accordeon-like User Interface and result presentation
@@ -107,7 +132,34 @@ app.layout = dbc.Container([
                         
                         https://www.hipowar.eu/home
                         
+                        
+                        #### Electricity cost calculation
+                        
+                        Web application for comparison of electricity generation costs of different technologies with 
+                        consideration of different fuels and uncertainty regarding future economic boundary condition. 
+                        
+                        Electricity generation costs are calculated by method of 'levelized costs of electricity', see
+                        https://en.wikipedia.org/wiki/Levelized_cost_of_electricity for further details.
+                        
+                        #### Instruction:
+                        
+                        Define settings for calculation of electricity costs below. Choose from predefined system &
+                        economic boundary conditions or define own study input.
+                        Run calculation of nominal values or full study by clicking buttons below.
+
                         '''),
+            html.Hr(),
+            dbc.Row([
+                dbc.Col(dcc.Markdown('''#### Run LCOE Calculation:'''), width=6, align="center"),
+                dbc.Col(dbc.Spinner(html.Div(id="loading-output"), color="success"), width=2, align="center"),
+                dbc.Col(dbc.Button("Nominal", id="bt_run_nominal", size="sm"), width={"size": 2}),
+                dbc.Col(dbc.Button("Study", id="bt_run_study", size="sm"), width=2),
+
+                ]),
+            html.Hr(),
+            dcc.Markdown('''
+            ##### Settings
+            '''),
             dbc.Accordion([
                 dbc.AccordionItem(title="Preset Selection", children=[
                     # Menu with different drop down menus for preset selections, 'Calculate' Button
@@ -141,15 +193,8 @@ app.layout = dbc.Container([
                         dbc.Col(html.P(df_input["Fuel_NG"].columns[-1], id="txt_NG_fuel_cost_Preset_Selection"),
                                 width=12, xl=8)]),
 
-                    html.Hr(),
-                    dbc.Row([
-                        dbc.Col(dbc.Button("Run Nominal", id="bt_run_nominal", size="sm"), width=3),
-                        dbc.Col(dbc.Button("Run Study", id="bt_run_study", size="sm"), width=3),
-
-                        dbc.Col(dbc.Spinner(html.Div(id="loading-output"), color="success"), width=3, align="center")
-                    ])
-
                 ]),
+
                 dbc.AccordionItem(title="Energy Conversion System Settings", children=[
                     # Menu with input cards for each energy conversion system (HiPowAR, SOFC,ICE)
                     dbc.Row([
@@ -204,16 +249,6 @@ app.layout = dbc.Container([
                     ])
                 ]),
 
-                dbc.AccordionItem(title="About", children=[
-                    dcc.Markdown('''
-                    Source: https://github.com/fkuschel/LCOEcalc
-                    
-                    Contact:
-                    - Florian Kuschel, ZBT Duisburg
-                    - https://www.linkedin.com/in/florian-kuschel/
-                    
-                    ''')
-                ]),
                 dbc.AccordionItem(title="Developer", children=[
                     dbc.Row([dbc.Col(dbc.Button("Build: Initial Data Collect", id="bt_collect"), width=2),
                              dbc.Col(dbc.Button("Build: Random Fill Fields", id="bt_fill"), width=2),
@@ -226,7 +261,14 @@ app.layout = dbc.Container([
                     dbc.Row([html.Pre("Build: Update Collect Input", id="txt_build2")]),
                     dbc.Row([html.Pre("Debug Calculation:", id="txt_dev_button_init")])
                 ]),
-            ], always_open=True)
+            ], always_open=True),
+            html.Hr(),
+            dcc.Markdown('''
+            #### About
+            
+            Source: https://github.com/fkuschel/LCOEcalc
+            
+            '''),
         ], width=12, xl=4),
 
         # Visualization Column
@@ -240,23 +282,28 @@ app.layout = dbc.Container([
                 dbc.AccordionItem(title="LCOE Study Results", children=[
                     dbc.Row([
                         dbc.Col([
-                            dcc.Graph(id='graph_lcoe_multi_NH3')
+                            dcc.Graph(id='graph_lcoe_multi_NH3', figure=empty_fig)
                         ]),
                         dbc.Col([
-                            dcc.Graph(id='graph_lcoe_multi_NG')
+                            dcc.Graph(id='graph_lcoe_multi_NG', figure=empty_fig)
                         ])]),
                     html.Hr(),
                     dbc.Row([
                         dbc.Col([
-                            dcc.Graph(id='lcoe-graph-sensitivity')])
+                            dcc.Graph(id='lcoe-graph-sensitivity', figure=empty_fig)])
                     ])
                 ]),
-            ], active_item = ["item-0", "item-1"], always_open=True)
+            ], active_item=["item-0", "item-1"], always_open=True)
         ], width=12, xl=8)
 
     ])
 
 ], fluid=True)
+
+
+# Plot Template
+# --------------------------------------------------------------
+# --------------------------------------------------------------
 
 
 # Callback Functions, app specific
@@ -270,7 +317,6 @@ app.layout = dbc.Container([
     Output({'type': 'input', 'component': 'ICE', 'par': ALL, 'parInfo': ALL}, 'value'),
 
     [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_input["Systems"].columns[first_clm:]))], )
-
 def cbf_quickstart_select_system_preset(*inp):
     """
     Description:
@@ -394,23 +440,28 @@ def cbf_quickstart_button_runNominalLCOE(*args):
 
     # 3. Read results and write into table (could be reworked)
     # ------------------------------------------------------------------------------------------------------------------
-    df_table = pd.DataFrame(columns=["LCOE [€/kWh]"])
-    df_table.loc["System Name", "LCOE [€/kWh]"] = "LCOE [€/kWh]"
+    df_table = pd.DataFrame(columns=["System Name","LCOE [€/kWh], Ammonia", "LCOE [€/kWh], Natural Gas"])
     for key, system in data.items():
-        df_table.loc[key, "LCOE [€/kWh]"] = round(system.df_results.loc["nominal", "LCOE"], 3)
-    df_table = df_table.reset_index(level=0)
+        systemname = key.split("_")[0]
+        df_table.loc[systemname, "System Name"] = key.split("_")[0]
+        if key.split("_")[1] == "NH3":
+            df_table.loc[systemname, "LCOE [€/kWh], Ammonia"] = round(system.df_results.loc["nominal", "LCOE"], 2)
+        else:
+            df_table.loc[systemname, "LCOE [€/kWh], Natural Gas"] = round(system.df_results.loc["nominal", "LCOE"], 2)
 
-    table = dbc.Table.from_dataframe(df_table, bordered=True, hover=True)
+    #df_table = df_table.reset_index(level=0)
+
+    table = dbc.Table.from_dataframe(df_table, bordered=True, hover=True,index=False,header=True)
 
     logger.info('Successfull nominal calculation')
 
-    return table.children
+    return datetime.datetime.now(), table.children
 
 
 @app.callback(
     Output("flag_sensitivity_calculation_done", "children"),
     Output("storage", "data"),
-    Output("loading-output","children"),
+    Output("loading-output", "children"),
     Input("bt_run_study", "n_clicks"),
     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
     prevent_initial_call=True
@@ -466,6 +517,7 @@ def cbf_lcoeStudyResults_plot_NH3_update(inp, state):
     y1 = systems["SOFC_NH3"].df_results["LCOE"]
     y2 = systems["ICE_NH3"].df_results["LCOE"]
     fig = go.Figure()
+
     fig.add_trace(go.Box(y=y0, name='HiPowAR',
                          boxpoints='all',
                          marker=dict(color='rgb(160,7,97)'),
@@ -480,7 +532,8 @@ def cbf_lcoeStudyResults_plot_NH3_update(inp, state):
     fig.update_layout(
         title="Levelized Cost of Electricity - Green Ammonia",
         # xaxis_title="",
-        yaxis_title="LCOE [€/kW]")
+        yaxis_title="LCOE [€/kW]",
+        template=custom_template)
 
     logger.info('Finished sensitivity study')
 
@@ -519,7 +572,8 @@ def cbf_lcoeStudyResults_plot_NG_update(inp, state):
     fig.update_layout(
         title="Levelized Cost of Electricity - Natural Gas",
         # xaxis_title="",
-        yaxis_title="LCOE [€/kW]")
+        yaxis_title="LCOE [€/kW]",
+        template=custom_template)
     return fig
 
 
@@ -606,7 +660,8 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
 
     fig.update_layout(
         showlegend=False,
-        boxmode='group'  # group together boxes of the different traces for each value of x
+        boxmode='group',  # group together boxes of the different traces for each value of x
+        template=custom_template
     )
 
     return fig
@@ -676,7 +731,6 @@ def cbf_dev_button_init(inp, *args):
     # Collect data of input fields in dataframe
     df = read_input_fields(ctx.states_list[0])
     data = multisystem_calculation(df, system_components, ["Fuel_NH3", "Fuel_NG"], "all_minmax")
-
 
 
 if __name__ == "__main__":
