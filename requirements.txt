@@ -8,4 +8,4 @@ dacite
 setuptools
 dash-bootstrap-templates
 openpyxl
-
+Flask-Caching
