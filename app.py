@@ -95,8 +95,8 @@ empty_template = {"layout": {"xaxis": {"visible": False},
                                      "size": 28
                                  }
                              }],
-                             "plot_bgcolor":"#fbf5f9",
-                             "paper_bgcolor":"#fbf5f9"
+                             "plot_bgcolor": "#fbf5f9",
+                             "paper_bgcolor": "#fbf5f9"
 
                              }}
 
@@ -113,13 +113,14 @@ app.layout = dbc.Container([
     dcc.Store(id='storage', storage_type='memory'),
 
     # Header Row with title & logos
-    dbc.Row([dbc.Col(html.H2(["HiPowAR", html.Br() ,"Electricity Generation Costs Calculation"]), width=12, xl={"size": 4}),
-             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(hipowar_base64), width=100),
-                     width=12, xl={"size": 2}, align="center"),
-             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(eu_base64), width=300),
-                     width=12, xl=2, align="center"),
-             dbc.Col(html.Img(src='data:image/png;base64,{}'.format(zbt_base64), width=250),
-                     width=12, xl={"size": 2,"offset":2}, align="center")]),
+    dbc.Row(
+        [dbc.Col(html.H2(["HiPowAR", html.Br(), "Electricity Generation Costs Calculation"]), width=12, xl={"size": 4}),
+         dbc.Col(html.Img(src='data:image/png;base64,{}'.format(hipowar_base64), width=100),
+                 width=12, xl={"size": 2}, align="center"),
+         dbc.Col(html.Img(src='data:image/png;base64,{}'.format(eu_base64), width=300),
+                 width=12, xl=2, align="center"),
+         dbc.Col(html.Img(src='data:image/png;base64,{}'.format(zbt_base64), width=250),
+                 width=12, xl={"size": 2, "offset": 2}, align="center")]),
     html.Hr(),
 
     # Accordeon-like User Interface and result presentation
@@ -157,7 +158,7 @@ app.layout = dbc.Container([
                 dbc.Col(dbc.Button("Nominal", id="bt_run_nominal", size="sm"), width={"size": 2}),
                 dbc.Col(dbc.Button("Study", id="bt_run_study", size="sm"), width=2),
 
-                ]),
+            ]),
             html.Hr(),
             dcc.Markdown('''
             ##### Settings
@@ -277,11 +278,13 @@ app.layout = dbc.Container([
         dbc.Col([
             dbc.Accordion([
                 dbc.AccordionItem(title='Nominal Results', children=[
-                    dbc.Row(dbc.Col(
-                        dbc.Table(id="table_lcoe_nominal", striped=False, bordered=True)
-                    ))
+                    dbc.Collapse(
+                        dbc.Row(dbc.Col(
+                            dbc.Table(id="table_lcoe_nominal", striped=False, bordered=True)
+                        )), id="collapse_nom", is_open=False)
                 ], ),
-                dbc.AccordionItem(title="LCOE Study Results", children=[
+                dbc.AccordionItem(title="LCOE Study Results", children=
+                    dbc.Collapse(children=[
                     dbc.Row([
                         dbc.Col([
                             dcc.Graph(id='graph_lcoe_multi_NH3', figure=empty_fig)
@@ -290,12 +293,12 @@ app.layout = dbc.Container([
                             dcc.Graph(id='graph_lcoe_multi_NG', figure=empty_fig)
                         ])]),
                     html.Hr(),
-                    dbc.Row([
+                    dbc.Row(
                         dbc.Col([
                             dcc.Graph(id='lcoe-graph-sensitivity', figure=empty_fig)])
-                    ])
-                ]),
-            ], active_item=["item-0", "item-1"], always_open=True)
+                    )], id="collapse_study", is_open=False))
+                ,
+            ], active_item=["item-0", "item-1"], always_open=True)  #
         ], width=12, xl=8)
 
     ])
@@ -408,6 +411,7 @@ def cbf_quickstart_select_NGfuel_preset(*inputs):
 @app.callback(
     Output("flag_nominal_calculation_done", "children"),
     Output("table_lcoe_nominal", "children"),
+    Output("collapse_nom", "is_open"),
     Input("bt_run_nominal", "n_clicks"),
     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': 'nominal'}, 'value'),
     prevent_initial_call=True
@@ -437,7 +441,7 @@ def cbf_quickstart_button_runNominalLCOE(*args):
 
     # 3. Read results and write into table (could be reworked)
     # ------------------------------------------------------------------------------------------------------------------
-    df_table = pd.DataFrame(columns=["System Name","LCOE [€/kWh], Ammonia", "LCOE [€/kWh], Natural Gas"])
+    df_table = pd.DataFrame(columns=["System Name", "LCOE [€/kWh], Ammonia", "LCOE [€/kWh], Natural Gas"])
     for key, system in data.items():
         systemname = key.split("_")[0]
         df_table.loc[systemname, "System Name"] = key.split("_")[0]
@@ -446,19 +450,20 @@ def cbf_quickstart_button_runNominalLCOE(*args):
         else:
             df_table.loc[systemname, "LCOE [€/kWh], Natural Gas"] = round(system.df_results.loc["nominal", "LCOE"], 2)
 
-    #df_table = df_table.reset_index(level=0)
+    # df_table = df_table.reset_index(level=0)
 
-    table = dbc.Table.from_dataframe(df_table, bordered=True, hover=True,index=False,header=True)
+    table = dbc.Table.from_dataframe(df_table, bordered=True, hover=True, index=False, header=True)
 
     logger.info('Successfull nominal calculation')
 
-    return datetime.datetime.now(), table.children
+    return datetime.datetime.now(), table.children,True
 
 
 @app.callback(
     Output("flag_sensitivity_calculation_done", "children"),
     Output("storage", "data"),
     Output("loading-output", "children"),
+    Output("collapse_study", "is_open"),
     Input("bt_run_study", "n_clicks"),
     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
     prevent_initial_call=True
@@ -490,7 +495,7 @@ def cbf_quickstart_button_runSensitivityLCOE(*args):
     # -----------------------------------------------------------------------------------------------------------------
     # Create json file:
     data = store_data(systems)
-    return [datetime.datetime.now(), data, None]
+    return [datetime.datetime.now(), data, None, True]
 
 
 @app.callback(
