@@ -252,19 +252,21 @@ app.layout = dbc.Container([
                     ])
                 ]),
 
-                dbc.AccordionItem(title="Developer", children=[
-                    dbc.Row([dbc.Col(dbc.Button("Build: Initial Data Collect", id="bt_collect"), width=2),
-                             dbc.Col(dbc.Button("Build: Random Fill Fields", id="bt_fill"), width=2),
-                             dbc.Col(dbc.Button("Work: Update Data Collect", id="bt_update_collect"), width=2),
-                             dbc.Col(dbc.Button("Debug: Init", id="bt_init"), width=2)
-                             ]),
-                    dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done")]),
-                    dbc.Row([html.Pre("Sensitivity Calculation Done:", id="flag_sensitivity_calculation_done")]),
-                    dbc.Row([html.Pre("Build: Initial Collect Input", id="txt_build1")]),
-                    dbc.Row([html.Pre("Build: Update Collect Input", id="txt_build2")]),
-                    dbc.Row([html.Pre("Debug Calculation:", id="txt_dev_button_init")])
-                ]),
+                # dbc.AccordionItem(title="Developer", children=[
+                #     dbc.Row([dbc.Col(dbc.Button("Build: Initial Data Collect", id="bt_collect"), width=2),
+                #              dbc.Col(dbc.Button("Build: Random Fill Fields", id="bt_fill"), width=2),
+                #              dbc.Col(dbc.Button("Work: Update Data Collect", id="bt_update_collect"), width=2),
+                #              dbc.Col(dbc.Button("Debug: Init", id="bt_init"), width=2)
+                #              ]),
+                #     dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done")]),
+                #     dbc.Row([html.Pre("Sensitivity Calculation Done:", id="flag_sensitivity_calculation_done")]),
+                #     dbc.Row([html.Pre("Build: Initial Collect Input", id="txt_build1")]),
+                #     dbc.Row([html.Pre("Build: Update Collect Input", id="txt_build2")]),
+                #     dbc.Row([html.Pre("Debug Calculation:", id="txt_dev_button_init")])
+                # ]),
             ], always_open=True),
+            dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done")]),
+            dbc.Row([html.Pre("Sensitivity Calculation Done:", id="flag_sensitivity_calculation_done")]),
             html.Hr(),
             dcc.Markdown('''
             #### About
