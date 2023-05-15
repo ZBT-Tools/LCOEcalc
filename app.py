@@ -5,7 +5,10 @@ Description
     - Debugging/Developent functions and AccordeonItem are commented out.
 # Ideas
     - #ToDo: Show Graphs at website startup. therefore initialize storage with default system data.
+
     - #ToDo: Implement CO2-Emmission tax
+
+# IMPORTANT!
 
 Code Structure:
 
@@ -35,6 +38,7 @@ from scripts.data_handler import store_data
 from scripts.gui_functions import fill_input_fields, read_input_fields, build_initial_collect, \
     style_generic_dropdown, \
     style_inpCard_LCOE_comp, style_inpCard_LCOE
+from scripts.dash_functions import read_data, store_data
 
 # Logging
 logging.config.fileConfig('logging.conf', disable_existing_loggers=False)
@@ -271,29 +275,31 @@ app.layout = dbc.Container([
                     ])
                 ]),
 
-                dbc.AccordionItem(title="Developer", children=[
-                    dbc.Row([
-                        # dbc.Col(dbc.Button("Build: Initial Data Collect",
-                        #                    id="bt_collect"), width=2),
-                        # dbc.Col(dbc.Button("Build: Random Fill Fields",
-                        #                    id="bt_fill"), width=2),
-                        # dbc.Col(dbc.Button("Work: Update Data Collect",
-                        #                    id="bt_update_collect"), width=2),
-                        # dbc.Col(dbc.Button("Debug: Init", id="bt_init"), width=2)
-                        dbc.Col(dbc.Button("Debug: Save Results", id="bt_save"), width=2)
-                    ]),
-                    dbc.Row([html.Pre("Nominal Calculation Done:",
-                                      id="flag_nominal_calculation_done")]),
-                    dbc.Row([html.Pre("Sensitivity Calculation Done:",
-                                      id="flag_sensitivity_calculation_done")]),
-                    dbc.Row([html.Pre("Build: Initial Collect Input", id="txt_build1")]),
-                    dbc.Row([html.Pre("Build: Update Collect Input", id="txt_build2")]),
-                    dbc.Row([html.Pre("Debug Calculation:", id="txt_dev_button_init")])
-                ]),
+                # dbc.AccordionItem(title="Developer", children=[
+                #     dbc.Row([
+                #         # dbc.Col(dbc.Button("Build: Initial Data Collect",
+                #         #                    id="bt_collect"), width=2),
+                #         # dbc.Col(dbc.Button("Build: Random Fill Fields",
+                #         #                    id="bt_fill"), width=2),
+                #         # dbc.Col(dbc.Button("Work: Update Data Collect",
+                #         #                    id="bt_update_collect"), width=2),
+                #         # dbc.Col(dbc.Button("Debug: Init", id="bt_init"), width=2)
+                #         dbc.Col(dbc.Button("Debug: Save Results", id="bt_save"), width=2)
+                #     ]),
+                #     # dbc.Row([html.Pre("Nominal Calculation Done:",
+                #     #                   id="flag_nominal_calculation_done")]),
+                #     # dbc.Row([html.Pre("Sensitivity Calculation Done:",
+                #     #                   id="flag_sensitivity_calculation_done")]),
+                #     # dbc.Row([html.Pre("Build: Initial Collect Input", id="txt_build1")]),
+                #     # dbc.Row([html.Pre("Build: Update Collect Input", id="txt_build2")]),
+                #     # dbc.Row([html.Pre("Debug Calculation:", id="txt_dev_button_init")])
+                # ]),
             ], always_open=True),
             dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done")]),
             dbc.Row([html.Pre("Sensitivity Calculation Done:",
                               id="flag_sensitivity_calculation_done")]),
+            dbc.Row([html.Pre("",
+                              id="debug1")]),
             html.Hr(),
             dcc.Markdown('''
             #### About
@@ -692,21 +698,20 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
 
     return fig
 
-
-@app.callback(
-    Output("txt_build1", "children"),
-    Input("bt_save", "n_clicks"),
-    State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
-    prevent_initial_call=True)
-def cbf_dev_button_build_initialCollectInput(*args):
-    """
-    Creates new DataFrame / excel table with all inputfields of types defined in callback above.
-    """
-    df = build_initial_collect(ctx.states_list[0])
-    # df.to_pickle("input4.pkl")
-    df.to_excel("input4.xlsx")
-
-    return "ok"
+# @app.callback(
+#     Output("debug1", "children"),
+#     Input("bt_save", "n_clicks"),
+#     State('storage', 'data'),
+#     prevent_initial_call=True)
+# def cbf_dev_button_save_study(clicks, data):
+#     """
+#     Save study results
+#     """
+#     file = store_data(data)
+#     with open('input/results.pickle', 'wb') as handle:
+#         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+#
+#     return "ok"
 #
 #
 # # # INFO: Function is commented, because there would be an output overlap. Decoment when building GUI!
