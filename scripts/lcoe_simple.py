@@ -29,12 +29,12 @@ def lcoe(inp: DataclassLCOEsimpleInput):
                       columns=["Investment", "OM", "Fuel", "Power"])
     df.loc[0, :] = 0
 
-    # Investment Costs
+    # Investment Costs (only in first year)
     # ----------------------------
     df.loc[0, "Investment"] = inp.size_kW * inp.capex_Eur_kW
     df.loc[1:, "Investment"] = 0
 
-    # O&M Costs
+    # OPEX Costs
     # ----------------------------
     df.loc[1:, "OM"] = inp.size_kW * inp.operatinghoursyearly * inp.opex_Eur_kWh
 
@@ -46,7 +46,7 @@ def lcoe(inp: DataclassLCOEsimpleInput):
     # ----------------------------
     df.loc[1:, "Power"] = inp.size_kW * inp.operatinghoursyearly
 
-    # Financial Accumulation
+    # Financial Discounting
     # ----------------------------
     df["Investment_fin"] = df.apply(lambda row: row.Investment / (1 + inp.discountrate_perc / 100) ** int(row.name),
                                     axis=1)
