@@ -4,7 +4,8 @@ Info
 Description
     - Debugging/Developent functions and AccordeonItem are commented out.
 # Ideas
-    - Show Graphs at website startup. therefore initialize storage with default system data.
+    - #ToDo: Show Graphs at website startup. therefore initialize storage with default system data.
+    - #ToDo: Implement CO2-Emmission tax
 
 Code Structure:
 
@@ -12,6 +13,8 @@ Code Structure:
     - Initialization prior to app start
     - App styling and input functions for recurring use in layout
     - App layout definition
+
+
 
 """
 import logging
@@ -29,7 +32,8 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from scripts.lcoe_simple import multisystem_calculation
 from scripts.data_handler import store_data
-from scripts.gui_functions import fill_input_fields, read_input_fields, build_initial_collect, style_generic_dropdown, \
+from scripts.gui_functions import fill_input_fields, read_input_fields, build_initial_collect, \
+    style_generic_dropdown, \
     style_inpCard_LCOE_comp, style_inpCard_LCOE
 
 # Logging
@@ -69,13 +73,14 @@ server = app.server
 # cache.clear()
 
 # 2. App layout
-# ----------------------------------------------------------------------------------------------------------------------
-# Info: as proposed by dash bootstrap component guide, everything is ordered in dbc.Row's, containing dbc.Col's
+# --------------------------------------------------------------------------------------------------
+# Info: as proposed by dash bootstrap component guide, everything is ordered in dbc.Row's,
+# containing dbc.Col's
 # https://dash-bootstrap-components.opensource.faculty.ai/docs/components/layout/
-# "The layout of your app should be built as a series of rows of columns.
-#  The Col component should always be used as an immediate child of Row and is a wrapper for your content
-#  that ensures it takes up the correct amount of horizontal space."
-#  https://getbootstrap.com/docs/5.0/utilities/spacing/
+# "The layout of your app should be built as a series of rows of columns. The Col component should
+# always be used as an immediate child of Row and is a wrapper for your content that ensures it
+# takes up the correct amount of horizontal space."
+# https://getbootstrap.com/docs/5.0/utilities/spacing/
 
 # Figure template
 custom_template = {
@@ -96,14 +101,13 @@ empty_template = {"layout": {"xaxis": {"visible": False},
                                  }
                              }],
                              "plot_bgcolor": "#fbf5f9",
-                             "paper_bgcolor": "#fbf5f9"
-
-                             }}
+                             "paper_bgcolor": "#fbf5f9"}}
 
 empty_fig = go.Figure()
 empty_fig.update_layout(template=empty_template)
 
 app.layout = dbc.Container([
+
     # Storage definition
     # ---------------
     # Inputs and results are of small file size, therefore users local memory is used.
@@ -114,7 +118,8 @@ app.layout = dbc.Container([
 
     # Header Row with title & logos
     dbc.Row(
-        [dbc.Col(html.H2(["HiPowAR", html.Br(), "Electricity Generation Costs Calculation"]), width=12, xl={"size": 4}),
+        [dbc.Col(html.H2(["HiPowAR", html.Br(), "Electricity Generation Costs Calculation"]),
+                 width=12, xl={"size": 4}),
          dbc.Col(html.Img(src='data:image/png;base64,{}'.format(hipowar_base64), width=100),
                  width=12, xl={"size": 2}, align="center"),
          dbc.Col(html.Img(src='data:image/png;base64,{}'.format(eu_base64), width=300),
@@ -154,7 +159,8 @@ app.layout = dbc.Container([
             html.Hr(),
             dbc.Row([
                 dbc.Col(dcc.Markdown('''#### Run LCOE Calculation:'''), width=6, align="center"),
-                dbc.Col(dbc.Spinner(html.Div(id="loading-output"), color="success"), width=2, align="center"),
+                dbc.Col(dbc.Spinner(html.Div(id="loading-output"), color="success"), width=2,
+                        align="center"),
                 dbc.Col(dbc.Button("Nominal", id="bt_run_nominal", size="sm"), width={"size": 2}),
                 dbc.Col(dbc.Button("Study", id="bt_run_study", size="sm"), width=2),
 
@@ -170,30 +176,37 @@ app.layout = dbc.Container([
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_preset", label="System",
 
-                                                       elements=df_input["Systems"].columns[first_clm:]),
+                                                       elements=df_input["Systems"].columns[
+                                                                first_clm:]),
                                 width=6, xl=4),
                         dbc.Col(html.P(df_input["Systems"].columns[-1], id="txt_Preset_Selection"),
                                 width=12, xl=8)]),
                     # Dropdown Financial Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_Financial", label="Financial",
-                                                       elements=df_input["Financial"].columns[first_clm:]),
+                                                       elements=df_input["Financial"].columns[
+                                                                first_clm:]),
                                 width=6, xl=4),
-                        dbc.Col(html.P(df_input["Financial"].columns[-1], id="txt_Financial_Selection"),
-                                width=12, xl=8)]),
+                        dbc.Col(
+                            html.P(df_input["Financial"].columns[-1], id="txt_Financial_Selection"),
+                            width=12, xl=8)]),
                     # Dropdown NH3 Fuel Cost Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3 Cost",
-                                                       elements=df_input["Fuel_NH3"].columns[first_clm:]),
+                                                       elements=df_input["Fuel_NH3"].columns[
+                                                                first_clm:]),
                                 width=6, xl=4),
-                        dbc.Col(html.P(df_input["Fuel_NH3"].columns[-1], id="txt_NH3_fuel_cost_Preset_Selection"),
+                        dbc.Col(html.P(df_input["Fuel_NH3"].columns[-1],
+                                       id="txt_NH3_fuel_cost_Preset_Selection"),
                                 width=12, xl=8)]),
                     # Dropdown NG Fuel Cost Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_NG_fuel_cost", label="NG",
-                                                       elements=df_input["Fuel_NG"].columns[first_clm:]),
+                                                       elements=df_input["Fuel_NG"].columns[
+                                                                first_clm:]),
                                 width=6, xl=4),
-                        dbc.Col(html.P(df_input["Fuel_NG"].columns[-1], id="txt_NG_fuel_cost_Preset_Selection"),
+                        dbc.Col(html.P(df_input["Fuel_NG"].columns[-1],
+                                       id="txt_NG_fuel_cost_Preset_Selection"),
                                 width=12, xl=8)]),
 
                 ]),
@@ -202,7 +215,8 @@ app.layout = dbc.Container([
                     # Menu with input cards for each energy conversion system (HiPowAR, SOFC,ICE)
                     dbc.Row([
 
-                        dbc.Col(style_inpCard_LCOE_comp(header="HiPowAR", component="HiPowAR"), width=12),
+                        dbc.Col(style_inpCard_LCOE_comp(header="HiPowAR", component="HiPowAR"),
+                                width=12),
                         dbc.Col(style_inpCard_LCOE_comp(header="SOFC", component="SOFC",
                                                         # add_rows=[{"par": "stacklifetime_hr",
                                                         #            "label": "Stack Lifetime [hr]"},
@@ -211,7 +225,8 @@ app.layout = dbc.Container([
                                                         ),
                                 width=12),
 
-                        dbc.Col(style_inpCard_LCOE_comp(component="ICE", header="Internal Combustion Eng."),
+                        dbc.Col(style_inpCard_LCOE_comp(component="ICE",
+                                                        header="Internal Combustion Eng."),
 
                                 width=12)
                     ], )
@@ -224,7 +239,8 @@ app.layout = dbc.Container([
                                                    specific_row_input=[
                                                        {'par': "discountrate_perc",
                                                         'label': "Discount Rate [%]"},
-                                                       {'par': "lifetime_yr", 'label': "Lifetime [y]"},
+                                                       {'par': "lifetime_yr",
+                                                        'label': "Lifetime [y]"},
                                                        {'par': "operatinghoursyearly",
                                                         'label': "Operating hours [hr/yr]"}]
                                                    ), width=12),
@@ -236,37 +252,48 @@ app.layout = dbc.Container([
                                                        {'par': 'fuel_cost_Eur_per_kWh',
                                                         'label': "NH3 cost [€/kWh]"},
                                                        {'par': 'fuel_costIncrease_percent_per_year',
-                                                        'label': "NH3 cost increase [%/yr]"}]), width=12,
+                                                        'label': "NH3 cost increase [%/yr]"}]),
+                                width=12,
                             )),
 
                             dbc.Row(dbc.Col(
                                 style_inpCard_LCOE(header="NG Fuel Cost", component='Fuel_NG',
                                                    specific_row_input=[
-                                                       {'par': 'fuel_cost_Eur_per_kWh', 'label': "NG cost ["
-                                                                                                 "€/kWh]"},
+                                                       {'par': 'fuel_cost_Eur_per_kWh',
+                                                        'label': "NG cost ["
+                                                                 "€/kWh]"},
                                                        {'par': 'fuel_costIncrease_percent_per_year',
-                                                        'label': "NG cost increase [%/yr]"}]), width=12
+                                                        'label': "NG cost increase [%/yr]"}]),
+                                width=12
                             ))
 
                         ])
                     ])
                 ]),
 
-                # dbc.AccordionItem(title="Developer", children=[
-                #     dbc.Row([dbc.Col(dbc.Button("Build: Initial Data Collect", id="bt_collect"), width=2),
-                #              dbc.Col(dbc.Button("Build: Random Fill Fields", id="bt_fill"), width=2),
-                #              dbc.Col(dbc.Button("Work: Update Data Collect", id="bt_update_collect"), width=2),
-                #              dbc.Col(dbc.Button("Debug: Init", id="bt_init"), width=2)
-                #              ]),
-                #     dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done")]),
-                #     dbc.Row([html.Pre("Sensitivity Calculation Done:", id="flag_sensitivity_calculation_done")]),
-                #     dbc.Row([html.Pre("Build: Initial Collect Input", id="txt_build1")]),
-                #     dbc.Row([html.Pre("Build: Update Collect Input", id="txt_build2")]),
-                #     dbc.Row([html.Pre("Debug Calculation:", id="txt_dev_button_init")])
-                # ]),
+                dbc.AccordionItem(title="Developer", children=[
+                    dbc.Row([
+                        # dbc.Col(dbc.Button("Build: Initial Data Collect",
+                        #                    id="bt_collect"), width=2),
+                        # dbc.Col(dbc.Button("Build: Random Fill Fields",
+                        #                    id="bt_fill"), width=2),
+                        # dbc.Col(dbc.Button("Work: Update Data Collect",
+                        #                    id="bt_update_collect"), width=2),
+                        # dbc.Col(dbc.Button("Debug: Init", id="bt_init"), width=2)
+                        dbc.Col(dbc.Button("Debug: Save Results", id="bt_save"), width=2)
+                    ]),
+                    dbc.Row([html.Pre("Nominal Calculation Done:",
+                                      id="flag_nominal_calculation_done")]),
+                    dbc.Row([html.Pre("Sensitivity Calculation Done:",
+                                      id="flag_sensitivity_calculation_done")]),
+                    dbc.Row([html.Pre("Build: Initial Collect Input", id="txt_build1")]),
+                    dbc.Row([html.Pre("Build: Update Collect Input", id="txt_build2")]),
+                    dbc.Row([html.Pre("Debug Calculation:", id="txt_dev_button_init")])
+                ]),
             ], always_open=True),
             dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done")]),
-            dbc.Row([html.Pre("Sensitivity Calculation Done:", id="flag_sensitivity_calculation_done")]),
+            dbc.Row([html.Pre("Sensitivity Calculation Done:",
+                              id="flag_sensitivity_calculation_done")]),
             html.Hr(),
             dcc.Markdown('''
             #### About
@@ -286,14 +313,15 @@ app.layout = dbc.Container([
                         )), id="collapse_nom", is_open=False)
                 ], ),
                 dbc.AccordionItem(title="LCOE Study Results", children=
-                    dbc.Collapse(children=[
-                    dbc.Row([
-                        dbc.Col([
-                            dcc.Graph(id='graph_lcoe_multi_NH3', figure=empty_fig)
-                        ]),
-                        dbc.Col([
-                            dcc.Graph(id='graph_lcoe_multi_NG', figure=empty_fig)
-                        ])]),
+                dbc.Collapse(children=[
+                    dbc.Row(dcc.Graph(id='graph_lcoe_combined', figure=empty_fig)),
+                    # dbc.Row([
+                    #     dbc.Col([
+                    #         dcc.Graph(id='graph_lcoe_multi_NH3', figure=empty_fig)
+                    #     ]),
+                    #     dbc.Col([
+                    #         dcc.Graph(id='graph_lcoe_multi_NG', figure=empty_fig)
+                    #     ])]),
                     html.Hr(),
                     dbc.Row(
                         dbc.Col([
@@ -318,7 +346,8 @@ app.layout = dbc.Container([
     Output({'type': 'input', 'component': 'SOFC', 'par': ALL, 'parInfo': ALL}, 'value'),
     Output({'type': 'input', 'component': 'ICE', 'par': ALL, 'parInfo': ALL}, 'value'),
 
-    [Input(f"dd_preset_{n}", "n_clicks") for n in range(len(df_input["Systems"].columns[first_clm:]))], )
+    [Input(f"dd_preset_{n}", "n_clicks") for n in
+     range(len(df_input["Systems"].columns[first_clm:]))], )
 def cbf_quickstart_select_system_preset(*inp):
     """
     Description:
@@ -336,7 +365,8 @@ def cbf_quickstart_select_system_preset(*inp):
         # At app initialization, callback is executed witout trigger id. Select newest definition
         selection_title = df_input["Systems"].columns[first_clm:][-1]
 
-    return_lists = fill_input_fields(selection_title, df=df_input["Systems"], output=ctx.outputs_list[1:])
+    return_lists = fill_input_fields(selection_title, df=df_input["Systems"],
+                                     output=ctx.outputs_list[1:])
 
     output = [selection_title]
     output.extend(return_lists)
@@ -347,7 +377,8 @@ def cbf_quickstart_select_system_preset(*inp):
 @app.callback(
     Output("txt_Financial_Selection", "children"),
     Output({'type': 'input', 'component': 'Financials', 'par': ALL, 'parInfo': ALL}, 'value'),
-    [Input(f"dd_Financial_{n}", "n_clicks") for n in range(len(df_input["Financial"].columns[first_clm:]))], )
+    [Input(f"dd_Financial_{n}", "n_clicks") for n in
+     range(len(df_input["Financial"].columns[first_clm:]))], )
 def cbf_quickstart_select_financial(*inputs):
     """
     Same as for cbf_quickstart_select_system_preset
@@ -358,7 +389,8 @@ def cbf_quickstart_select_financial(*inputs):
         # At app initialization, callback is executed witout trigger id. Select newest definition
         selection_title = df_input["Financial"].columns[first_clm:][-1]
 
-    return_lists = fill_input_fields(selection_title, df=df_input["Financial"], output=ctx.outputs_list[1])
+    return_lists = fill_input_fields(selection_title, df=df_input["Financial"],
+                                     output=ctx.outputs_list[1])
 
     output = [selection_title]
     output.extend(return_lists)
@@ -369,7 +401,8 @@ def cbf_quickstart_select_financial(*inputs):
 @app.callback(
     Output("txt_NH3_fuel_cost_Preset_Selection", "children"),
     Output({'type': 'input', 'component': 'Fuel_NH3', 'par': ALL, 'parInfo': ALL}, 'value'),
-    [Input(f"dd_NH3_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NH3"].columns[first_clm:]))])
+    [Input(f"dd_NH3_fuel_cost_{n}", "n_clicks") for n in
+     range(len(df_input["Fuel_NH3"].columns[first_clm:]))])
 def cbf_quickstart_select_NH3fuel_preset(*inputs):
     """
     Same as for cbf_quickstart_select_system_preset
@@ -380,7 +413,8 @@ def cbf_quickstart_select_NH3fuel_preset(*inputs):
         # At app initialization, callback is executed witout trigger id. Select newest definition
         selection_title = df_input["Fuel_NH3"].columns[first_clm:][-1]
 
-    return_lists = fill_input_fields(selection_title, df=df_input["Fuel_NH3"], output=ctx.outputs_list[1])
+    return_lists = fill_input_fields(selection_title, df=df_input["Fuel_NH3"],
+                                     output=ctx.outputs_list[1])
 
     output = [selection_title]
     output.extend(return_lists)
@@ -391,7 +425,8 @@ def cbf_quickstart_select_NH3fuel_preset(*inputs):
 @app.callback(
     Output("txt_NG_fuel_cost_Preset_Selection", "children"),
     Output({'type': 'input', 'component': 'Fuel_NG', 'par': ALL, 'parInfo': ALL}, 'value'),
-    [Input(f"dd_NG_fuel_cost_{n}", "n_clicks") for n in range(len(df_input["Fuel_NG"].columns[first_clm:]))])
+    [Input(f"dd_NG_fuel_cost_{n}", "n_clicks") for n in
+     range(len(df_input["Fuel_NG"].columns[first_clm:]))])
 def cbf_quickstart_select_NGfuel_preset(*inputs):
     """
     Same as for cbf_quickstart_select_system_preset
@@ -402,7 +437,8 @@ def cbf_quickstart_select_NGfuel_preset(*inputs):
         # At app initialization, callback is executed witout trigger id. Select newest definition
         selection_title = df_input["Fuel_NG"].columns[first_clm:][0]
 
-    return_lists = fill_input_fields(selection_title, df=df_input["Fuel_NG"], output=ctx.outputs_list[1])
+    return_lists = fill_input_fields(selection_title, df=df_input["Fuel_NG"],
+                                     output=ctx.outputs_list[1])
 
     output = [selection_title]
     output.extend(return_lists)
@@ -443,14 +479,17 @@ def cbf_quickstart_button_runNominalLCOE(*args):
 
     # 3. Read results and write into table (could be reworked)
     # ------------------------------------------------------------------------------------------------------------------
-    df_table = pd.DataFrame(columns=["System Name", "LCOE [€/kWh], Ammonia", "LCOE [€/kWh], Natural Gas"])
+    df_table = pd.DataFrame(
+        columns=["System Name", "LCOE [€/kWh], Ammonia", "LCOE [€/kWh], Natural Gas"])
     for key, system in data.items():
         systemname = key.split("_")[0]
         df_table.loc[systemname, "System Name"] = key.split("_")[0]
         if key.split("_")[1] == "NH3":
-            df_table.loc[systemname, "LCOE [€/kWh], Ammonia"] = round(system.df_results.loc["nominal", "LCOE"], 2)
+            df_table.loc[systemname, "LCOE [€/kWh], Ammonia"] = round(
+                system.df_results.loc["nominal", "LCOE"], 2)
         else:
-            df_table.loc[systemname, "LCOE [€/kWh], Natural Gas"] = round(system.df_results.loc["nominal", "LCOE"], 2)
+            df_table.loc[systemname, "LCOE [€/kWh], Natural Gas"] = round(
+                system.df_results.loc["nominal", "LCOE"], 2)
 
     # df_table = df_table.reset_index(level=0)
 
@@ -458,7 +497,7 @@ def cbf_quickstart_button_runNominalLCOE(*args):
 
     logger.info('Successfull nominal calculation')
 
-    return datetime.datetime.now(), table.children,True
+    return datetime.datetime.now(), table.children, True
 
 
 @app.callback(
@@ -501,16 +540,14 @@ def cbf_quickstart_button_runSensitivityLCOE(*args):
 
 
 @app.callback(
-    Output('graph_lcoe_multi_NH3', 'figure'),
+    Output('graph_lcoe_combined', 'figure'),
     Input("flag_sensitivity_calculation_done", "children"),
     State('storage', 'data'),
     prevent_initial_call=True)
-def cbf_lcoeStudyResults_plot_NH3_update(inp, state):
+def cbf_lcoeStudyResults_plot_update(inp, state):
     """
-    Todo
+    ...
     """
-
-    logger.info('Start sensitivity study')
 
     # Read results from storage
     systems = jsonpickle.loads(state)
@@ -520,6 +557,8 @@ def cbf_lcoeStudyResults_plot_NH3_update(inp, state):
     y0 = systems["HiPowAR_NH3"].df_results["LCOE"]
     y1 = systems["SOFC_NH3"].df_results["LCOE"]
     y2 = systems["ICE_NH3"].df_results["LCOE"]
+    y3 = systems["SOFC_NG"].df_results["LCOE"]
+    y4 = systems["ICE_NG"].df_results["LCOE"]
     fig = go.Figure()
 
     fig.add_trace(go.Box(y=y0, name='HiPowAR',
@@ -532,52 +571,30 @@ def cbf_lcoeStudyResults_plot_NH3_update(inp, state):
                          marker=dict(color='lightseagreen'), boxpoints='all'))
     fig.add_trace(go.Box(y=y2, name='ICE',
                          marker=dict(color='lightskyblue'), boxpoints='all'))
-
-    fig.update_layout(
-        title="Levelized Cost of Electricity - Green Ammonia",
-        # xaxis_title="",
-        yaxis_title="LCOE [€/kW]",
-        template=custom_template)
-
-    logger.info('Finished sensitivity study')
-
-    return fig
-
-
-@app.callback(
-    Output('graph_lcoe_multi_NG', 'figure'),
-    Input("flag_sensitivity_calculation_done", "children"),
-    State('storage', 'data'),
-    prevent_initial_call=True)
-def cbf_lcoeStudyResults_plot_NG_update(inp, state):
-    """
-    Todo
-    """
-    # Read from storage
-    systems = jsonpickle.loads(state)
-    systems = pickle.loads(systems)
-
-    # Simple LCOE Comparison Plot
-    y0 = systems["HiPowAR_NG"].df_results["LCOE"]
-    y1 = systems["SOFC_NG"].df_results["LCOE"]
-    y2 = systems["ICE_NG"].df_results["LCOE"]
-    fig = go.Figure()
-    fig.add_trace(go.Box(y=y0, name='HiPowAR',
-                         # marker_color='indianred',
-                         boxpoints='all',
-                         marker=dict(color='rgb(160,7,97)'),
-                         line=dict(color='rgb(31,148,175)')
-                         ))
-    fig.add_trace(go.Box(y=y1, name='SOFC',
+    fig.add_trace(go.Box(y=y3, name='SOFC, NG',
                          marker=dict(color='lightseagreen'), boxpoints='all'))
-    fig.add_trace(go.Box(y=y2, name='ICE',
+    fig.add_trace(go.Box(y=y4, name='ICE, NG',
                          marker=dict(color='lightskyblue'), boxpoints='all'))
 
     fig.update_layout(
-        title="Levelized Cost of Electricity - Natural Gas",
+        title="Levelized Cost of Electricity - Green Ammonia ",
         # xaxis_title="",
         yaxis_title="LCOE [€/kW]",
         template=custom_template)
+
+    fig.add_vline(x=2.4, line_width=3, line_dash="dash", line_color="green")
+
+    # add annotation
+    fig.add_annotation(dict(font=dict(size=15),  # ,color='yellow',
+                            x=0.6,
+                            y=-0.2,
+                            showarrow=False,
+                            text="Natural Gas",
+                            textangle=0,
+                            xanchor='left',
+                            xref="paper",
+                            yref="paper"))
+
     return fig
 
 
@@ -600,7 +617,8 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
     systems = jsonpickle.loads(state)
     systems = pickle.loads(systems)
 
-    colordict = {"HiPowAR_NH3": 'rgb(160,7,97)', "SOFC_NH3": 'lightseagreen', "ICE_NH3": 'lightskyblue'}
+    colordict = {"HiPowAR_NH3": 'rgb(160,7,97)', "SOFC_NH3": 'lightseagreen',
+                 "ICE_NH3": 'lightskyblue'}
 
     fig = make_subplots(rows=1, cols=1, shared_yaxes=True,
                         # x_title='Your master x-title',
@@ -628,7 +646,8 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
             qs = ""
             # Next rows create query:
             # Find all result rows, where all other values beside modpar are nomial
-            cond = [f"{parm} == {result_df_temp.loc['nominal', parm]}" for parm in variation_pars.drop(modpar)]
+            cond = [f"{parm} == {result_df_temp.loc['nominal', parm]}" for parm in
+                    variation_pars.drop(modpar)]
             for c in cond:
                 qs = qs + c + " & "
             qs = qs[:-3]  # remove last  " & "
@@ -637,14 +656,17 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
             # In case modpar has no variation (e.g. fuel cost increase is set as [0,0,0], all values are the same.
             # Thus following rows could include "nominal" set again. This needs to be prevented.
             tbred.drop(index="nominal", inplace=True)
-            rw = tbred.nsmallest(1, modpar)  # find smallest value of modpar for all results and add to result_df
+            rw = tbred.nsmallest(1,
+                                 modpar)  # find smallest value of modpar for all results and add to result_df
             rw["modpar"] = modpar
             result_df = pd.concat([result_df, rw])
-            rw = tbred.nlargest(1, modpar)  # find largest value of modpar for all results and add to result_df
+            rw = tbred.nlargest(1,
+                                modpar)  # find largest value of modpar for all results and add to result_df
             rw["modpar"] = modpar
             result_df = pd.concat([result_df, rw])
 
-        result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc["nominal", "LCOE"]  # Calculate difference to
+        result_df.loc[:, "diff"] = result_df["LCOE"] - result_df.loc[
+            "nominal", "LCOE"]  # Calculate difference to
         # nominal
 
         result_df.drop_duplicates(keep='first', inplace=True)
@@ -671,20 +693,20 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
     return fig
 
 
-# @app.callback(
-#     Output("txt_build1", "children"),
-#     Input("bt_collect", "n_clicks"),
-#     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
-#     prevent_initial_call=True)
-# def cbf_dev_button_build_initialCollectInput(*args):
-#     """
-#     Creates new DataFrame / excel table with all inputfields of types defined in callback above.
-#     """
-#     df = build_initial_collect(ctx.states_list[0])
-#     # df.to_pickle("input4.pkl")
-#     df.to_excel("input4.xlsx")
-#
-#     return "ok"
+@app.callback(
+    Output("txt_build1", "children"),
+    Input("bt_save", "n_clicks"),
+    State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
+    prevent_initial_call=True)
+def cbf_dev_button_build_initialCollectInput(*args):
+    """
+    Creates new DataFrame / excel table with all inputfields of types defined in callback above.
+    """
+    df = build_initial_collect(ctx.states_list[0])
+    # df.to_pickle("input4.pkl")
+    df.to_excel("input4.xlsx")
+
+    return "ok"
 #
 #
 # # # INFO: Function is commented, because there would be an output overlap. Decoment when building GUI!
