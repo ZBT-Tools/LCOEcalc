@@ -34,7 +34,7 @@ import datetime
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from scripts.lcoe_calculation import multisystem_calculation
-from scripts.data_handler import store_data
+from scripts.dash_functions import store_data
 from scripts.gui_functions import fill_input_fields, read_input_fields, build_initial_collect, \
     style_generic_dropdown, \
     style_inpCard_LCOE_comp, style_inpCard_LCOE
@@ -481,7 +481,7 @@ def cbf_quickstart_button_runNominalLCOE(*args):
 
     # 2. Initialize systems, prepare input-sets, perform calculations
     # ------------------------------------------------------------------------------------------------------------------
-    data = multisystem_calculation(df, system_components, ["Fuel_NH3", "Fuel_NG"], "nominal")
+    data = multisystem_calculation(df, system_names=system_components, fuel_names= ["Fuel_NH3", "Fuel_NG"], mode = "nominal")
 
     # 3. Read results and write into table (could be reworked)
     # ------------------------------------------------------------------------------------------------------------------
