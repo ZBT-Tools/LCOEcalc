@@ -33,7 +33,7 @@ import jsonpickle
 import datetime
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-from scripts.lcoe_simple import multisystem_calculation
+from scripts.lcoe_calculation import multisystem_calculation
 from scripts.data_handler import store_data
 from scripts.gui_functions import fill_input_fields, read_input_fields, build_initial_collect, \
     style_generic_dropdown, \
