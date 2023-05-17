@@ -12,11 +12,13 @@ class DataclassLCOEsimpleInput:
     opex_Eur_kWh: float  # [€/kWh], without fuel
     eta_perc: float  # [%]
     discountrate_perc: float  # [%]
+    cost_CO2_per_tonne: float  # [€/T_CO2]
     lifetime_yr: float  # [yr]
     operatinghoursyearly: float  # [hr/yr]
     fuel_name: str  # fuel name, as "NH3","NG",...
     fuel_cost_Eur_per_kWh: float  # [€/kWh]
     fuel_costIncrease_percent_per_year: float  # [%]
+    fuel_CO2emission_tonnes_per_MWh: float  # [T_CO/MWh]
 
 
 def lcoe(inp: DataclassLCOEsimpleInput):
@@ -26,7 +28,8 @@ def lcoe(inp: DataclassLCOEsimpleInput):
     """
 
     df = pd.DataFrame(index=range(0, int(inp.lifetime_yr) + 1, 1),
-                      columns=["Investment", "OM", "Fuel", "Power"])
+                      columns=["Investment", "OM", "Fuel", "Power","CO2_Emission_Tonnes",
+                               "CO2_Emission_Cost"])
     df.loc[0, :] = 0
 
     # Investment Costs (only in first year)
@@ -40,28 +43,45 @@ def lcoe(inp: DataclassLCOEsimpleInput):
 
     # Fuel Costs
     # ----------------------------
-    df.loc[1:, "Fuel"] = inp.size_kW * inp.operatinghoursyearly * inp.fuel_cost_Eur_per_kWh * 100 / inp.eta_perc
+    df.loc[1:,
+    "Fuel"] = inp.size_kW * inp.operatinghoursyearly * inp.fuel_cost_Eur_per_kWh * 100 / inp.eta_perc
 
+    # CO2 Emission [Tonnes]
+    # ----------------------------
+    df.loc[1:, "CO2_Emission_Tonnes"] = inp.fuel_CO2emission_tonnes_per_MWh * inp.size_kW / 1000 * \
+                                        inp.operatinghoursyearly * 100 / inp.eta_perc
+
+    # CO2 Emission Cost
+    # ----------------------------
+    df.loc[1:, "CO2_Emission_Cost"] = df.loc[:, "CO2_Emission_Tonnes"] * inp.cost_CO2_per_tonne
     # Electricity Generation
     # ----------------------------
     df.loc[1:, "Power"] = inp.size_kW * inp.operatinghoursyearly
 
-    # Financial Discounting
+    # Financial Discounting of costs
     # ----------------------------
-    df["Investment_fin"] = df.apply(lambda row: row.Investment / (1 + inp.discountrate_perc / 100) ** int(row.name),
-                                    axis=1)
-    df["OM_fin"] = df.apply(lambda row: row.OM / (1 + inp.discountrate_perc / 100) ** int(row.name), axis=1)
-    df["Fuel_fin"] = df.apply(lambda row: row.Fuel / (1 + inp.discountrate_perc / 100) ** int(row.name), axis=1)
-    df["Power_fin"] = df.apply(lambda row: row.Power / (1 + inp.discountrate_perc / 100) ** int(row.name),
-                               axis=1)
+    df["Investment_fin"] = df.apply(
+        lambda row: row.Investment / (1 + inp.discountrate_perc / 100) ** int(row.name),
+        axis=1)
+    df["OM_fin"] = df.apply(lambda row: row.OM / (1 + inp.discountrate_perc / 100) ** int(row.name),
+                            axis=1)
+    df["Fuel_fin"] = df.apply(
+        lambda row: row.Fuel / (1 + inp.discountrate_perc / 100) ** int(row.name), axis=1)
+    df["CO2_Emission_Cost_fin"] = df.apply(
+        lambda row: row.CO2_Emission_Cost / (1 + inp.discountrate_perc / 100) ** int(row.name),
+        axis=1)
+    df["Power_fin"] = df.apply(
+        lambda row: row.Power / (1 + inp.discountrate_perc / 100) ** int(row.name),
+        axis=1)
 
-    lcoe_val = (df["Investment_fin"].sum() + df["OM_fin"].sum() + df["Fuel_fin"].sum()) / \
-               df["Power_fin"].sum()  # [€/kWh]
+    lcoe_val = (df["Investment_fin"].sum() + df["OM_fin"].sum() + df["Fuel_fin"].sum() +
+                df["CO2_Emission_Cost"].sum()) / df["Power_fin"].sum()  # [€/kWh]
 
     return lcoe_val
 
 
-def multisystem_calculation(df: pd.DataFrame, system_names: list, fuel_names: list, mode: str):
+def multisystem_calculation(df: pd.DataFrame, system_names: list, fuel_names: list, fuel_prop: dict,
+                            mode: str):
     """
     Initialize InputHandlerLOCE-object for all systems and fuel combinations
     """
@@ -76,9 +96,10 @@ def multisystem_calculation(df: pd.DataFrame, system_names: list, fuel_names: li
 
             # Init Input Handler
             inputhandler = DataHandlerLCOE(df=dfred, dc=DataclassLCOEsimpleInput,
-                                           dict_additionalNames={"name": system, "fuel_name": fuel})
+                                           dict_additionalNames={"name": system, "fuel_name": fuel,
+                                                                 **fuel_prop[fuel]})
             inputhandler.create_input_sets(mode=mode)
-            inputhandler.submit_job(func=lcoe,resultcolumn="LCOE")
+            inputhandler.submit_job(func=lcoe, resultcolumn="LCOE")
             dict_systems.update({f"{system}_{fuel[5:]}": inputhandler})
 
     return dict_systems

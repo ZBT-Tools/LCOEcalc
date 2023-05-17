@@ -51,6 +51,16 @@ class DataHandler(ABC):
         self.dict_additionalNames = dict_additionalNames
         self.parID = parID  # Defines column name in df for name assignment with self.dc attributes.
 
+        # Add dict_additionalNames to df
+        for key, val in self.dict_additionalNames.items():
+            for parinfo in ["min", "nominal", "max"]:
+                addition = {'component': ['additional_parameter'],
+                            'par': [key],
+                            'parInfo': [parinfo],
+                            'type': ['constant input'],
+                            'value': [val]
+                            }
+                df = pd.concat([df, pd.DataFrame.from_dict(addition)],axis=0, ignore_index=True)
         # Distinguish numeric and non-numeric input parameter
         self.list_numeric_dc_pars = [key for key, val in dc.__dataclass_fields__.items() if
                                      val.type.__name__ != 'str']
@@ -81,7 +91,7 @@ class DataHandler(ABC):
         """
         pass
 
-    def submit_job(self, func,# df: pd.DataFrame,
+    def submit_job(self, func,  # df: pd.DataFrame,
                    inputcolumn="dataclass", resultcolumn="result",
                    removeInputcolumn=True):
         """
@@ -189,6 +199,7 @@ class DataHandlerLCOE(DataHandler):
     #                removeInputcolumn=None):
     #     self.df_results = super().submit_job(func, self.df_input_sets, resultcolumn="LCOE")
     #
+
 
 if __name__ == '__main__':
     ...

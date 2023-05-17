@@ -51,8 +51,11 @@ logger = logging.getLogger(__name__)
 
 system_components = ["HiPowAR", "ICE", "SOFC"]
 
+fuel_properties = {"Fuel_NH3": {"fuel_CO2emission_tonnes_per_MWh": 0},
+                   "Fuel_NG": {"fuel_CO2emission_tonnes_per_MWh": 0.02}}
+
 # Input definition table with presets, excel table
-df_input = pd.read_excel("input/Dash_LCOE_ConfigurationV3.xlsx",
+df_input = pd.read_excel("input/Dash_LCOE_ConfigurationV4.xlsx",
                          sheet_name=["Systems", "Financial", "Fuel_NH3", "Fuel_NG"])
 
 first_clm = 5
@@ -241,6 +244,8 @@ app.layout = dbc.Container([
                         dbc.Col(style_inpCard_LCOE(component="Financials", header="Financials",
 
                                                    specific_row_input=[
+                                                       {'par': "cost_CO2_per_tonne",
+                                                        "label": "CO2 Emission Cost [€/T]"},
                                                        {'par': "discountrate_perc",
                                                         'label': "Discount Rate [%]"},
                                                        {'par': "lifetime_yr",
@@ -481,7 +486,9 @@ def cbf_quickstart_button_runNominalLCOE(*args):
 
     # 2. Initialize systems, prepare input-sets, perform calculations
     # ------------------------------------------------------------------------------------------------------------------
-    data = multisystem_calculation(df, system_names=system_components, fuel_names= ["Fuel_NH3", "Fuel_NG"], mode = "nominal")
+    data = multisystem_calculation(df, system_names=system_components,
+                                   fuel_names=["Fuel_NH3", "Fuel_NG"], fuel_prop=fuel_properties,
+                                   mode="nominal")
 
     # 3. Read results and write into table (could be reworked)
     # ------------------------------------------------------------------------------------------------------------------
@@ -536,7 +543,8 @@ def cbf_quickstart_button_runSensitivityLCOE(*args):
 
     # 2. Initialize systems, prepare input-sets, perform calculations
     # ------------------------------------------------------------------------------------------------------------------
-    systems = multisystem_calculation(df, system_components, ["Fuel_NH3", "Fuel_NG"], "all_minmax")
+    systems = multisystem_calculation(df, system_components, fuel_names=["Fuel_NH3", "Fuel_NG"],
+                                      fuel_prop=fuel_properties, mode = "all_minmax")
 
     # 3. Store data in dcc.storage object
     # -----------------------------------------------------------------------------------------------------------------
@@ -697,6 +705,7 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
     )
 
     return fig
+
 
 # @app.callback(
 #     Output("debug1", "children"),
