@@ -28,7 +28,7 @@ def lcoe(inp: DataclassLCOEsimpleInput):
     """
 
     df = pd.DataFrame(index=range(0, int(inp.lifetime_yr) + 1, 1),
-                      columns=["Investment", "OM", "Fuel", "Power","CO2_Emission_Tonnes",
+                      columns=["Investment", "OM", "Fuel", "Power", "CO2_Emission_Tonnes",
                                "CO2_Emission_Cost"])
     df.loc[0, :] = 0
 
@@ -77,7 +77,7 @@ def lcoe(inp: DataclassLCOEsimpleInput):
     lcoe_val = (df["Investment_fin"].sum() + df["OM_fin"].sum() + df["Fuel_fin"].sum() +
                 df["CO2_Emission_Cost"].sum()) / df["Power_fin"].sum()  # [€/kWh]
 
-    return lcoe_val
+    return lcoe_val,df
 
 
 def multisystem_calculation(df: pd.DataFrame, system_names: list, fuel_names: list, fuel_prop: dict,
@@ -99,7 +99,7 @@ def multisystem_calculation(df: pd.DataFrame, system_names: list, fuel_names: li
                                            dict_additionalNames={"name": system, "fuel_name": fuel,
                                                                  **fuel_prop[fuel]})
             inputhandler.create_input_sets(mode=mode)
-            inputhandler.submit_job(func=lcoe, resultcolumn="LCOE")
+            inputhandler.submit_job(func=lcoe, resultcolumn="LCOE", mode=mode)
             dict_systems.update({f"{system}_{fuel[5:]}": inputhandler})
 
     return dict_systems

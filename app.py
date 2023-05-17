@@ -51,6 +51,9 @@ logger = logging.getLogger(__name__)
 
 system_components = ["HiPowAR", "ICE", "SOFC"]
 
+# Bayer; Ralf (2021): Informationsblatt CO2-Faktoren. Bundesförderung für Energie- und
+# Ressourceneffizienz in der Wirtschaft - Zuschuss.
+# Umweltbundesamt (2016): CO2-Emissionsfaktoren für fossile Brennstoffe.
 fuel_properties = {"Fuel_NH3": {"fuel_CO2emission_tonnes_per_MWh": 0},
                    "Fuel_NG": {"fuel_CO2emission_tonnes_per_MWh": 0.02}}
 
