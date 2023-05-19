@@ -102,7 +102,7 @@ custom_template = {
 empty_template = {"layout": {"xaxis": {"visible": False},
                              "yaxis": {"visible": False},
                              "annotations": [{
-                                 "text": "Please select v and m",
+                                 "text": "hi",
                                  "xref": "paper",
                                  "yref": "paper",
                                  "showarrow": False,
@@ -124,7 +124,8 @@ app.layout = dbc.Container([
     # Limit: 'It's generally safe to store [...] 5~10MB in most desktop-only applications.'
     # https://dash.plotly.com/sharing-data-between-callbacks
     # https://dash.plotly.com/dash-core-components/store
-    dcc.Store(id='storage', storage_type='memory'),
+    dcc.Store(id='nominal_storage', storage_type='memory'),
+    dcc.Store(id='study_storage', storage_type='memory'),
 
     # Header Row with title & logos
     dbc.Row(
@@ -304,6 +305,7 @@ app.layout = dbc.Container([
                 # ]),
             ], always_open=True),
             dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done")]),
+            dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done_2")]),
             dbc.Row([html.Pre("Sensitivity Calculation Done:",
                               id="flag_sensitivity_calculation_done")]),
             dbc.Row([html.Pre("",
@@ -321,10 +323,12 @@ app.layout = dbc.Container([
         dbc.Col([
             dbc.Accordion([
                 dbc.AccordionItem(title='Nominal Results', children=[
-                    dbc.Collapse(
+                    dbc.Collapse(children=[
                         dbc.Row(dbc.Col(
-                            dbc.Table(id="table_lcoe_nominal", striped=False, bordered=True)
-                        )), id="collapse_nom", is_open=False)
+                            dbc.Table(id="table_lcoe_nominal", striped=False, bordered=True))),
+                        dbc.Row(dcc.Graph(id='graph_pie_lcoe_nominal', figure=empty_fig))
+
+                    ], id="collapse_nom", is_open=False)
                 ], ),
                 dbc.AccordionItem(title="LCOE Study Results", children=
                 dbc.Collapse(children=[
@@ -462,7 +466,7 @@ def cbf_quickstart_select_NGfuel_preset(*inputs):
 
 @app.callback(
     Output("flag_nominal_calculation_done", "children"),
-    Output("table_lcoe_nominal", "children"),
+    Output("nominal_storage", "data"),
     Output("collapse_nom", "is_open"),
     Input("bt_run_nominal", "n_clicks"),
     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': 'nominal'}, 'value'),
@@ -493,32 +497,16 @@ def cbf_quickstart_button_runNominalLCOE(*args):
                                    fuel_names=["Fuel_NH3", "Fuel_NG"], fuel_prop=fuel_properties,
                                    mode="nominal")
 
-    # 3. Read results and write into table (could be reworked)
-    # ------------------------------------------------------------------------------------------------------------------
-    df_table = pd.DataFrame(
-        columns=["System Name", "LCOE [€/kWh], Ammonia", "LCOE [€/kWh], Natural Gas"])
-    for key, system in data.items():
-        systemname = key.split("_")[0]
-        df_table.loc[systemname, "System Name"] = key.split("_")[0]
-        if key.split("_")[1] == "NH3":
-            df_table.loc[systemname, "LCOE [€/kWh], Ammonia"] = round(
-                system.df_results.loc["nominal", "LCOE"], 2)
-        else:
-            df_table.loc[systemname, "LCOE [€/kWh], Natural Gas"] = round(
-                system.df_results.loc["nominal", "LCOE"], 2)
-
-    # df_table = df_table.reset_index(level=0)
-
-    table = dbc.Table.from_dataframe(df_table, bordered=True, hover=True, index=False, header=True)
+    stor_data = store_data(data)
 
     logger.info('Successfull nominal calculation')
 
-    return datetime.datetime.now(), table.children, True
+    return datetime.datetime.now(), stor_data, True
 
 
 @app.callback(
     Output("flag_sensitivity_calculation_done", "children"),
-    Output("storage", "data"),
+    Output("study_storage", "data"),
     Output("loading-output", "children"),
     Output("collapse_study", "is_open"),
     Input("bt_run_study", "n_clicks"),
@@ -546,20 +534,107 @@ def cbf_quickstart_button_runSensitivityLCOE(*args):
 
     # 2. Initialize systems, prepare input-sets, perform calculations
     # ------------------------------------------------------------------------------------------------------------------
-    systems = multisystem_calculation(df, system_components, fuel_names=["Fuel_NH3", "Fuel_NG"],
-                                      fuel_prop=fuel_properties, mode = "all_minmax")
+    # nominal_system = multisystem_calculation(df, system_names=system_components,
+    #                                          fuel_names=["Fuel_NH3", "Fuel_NG"],
+    #                                          fuel_prop=fuel_properties, mode="nominal")
+
+    systems = multisystem_calculation(df, system_names=system_components,
+                                      fuel_names=["Fuel_NH3", "Fuel_NG"],
+                                      fuel_prop=fuel_properties, mode="all_minmax")
 
     # 3. Store data in dcc.storage object
     # -----------------------------------------------------------------------------------------------------------------
     # Create json file:
-    data = store_data(systems)
-    return [datetime.datetime.now(), data, None, True]
+    # nominal_data = store_data(nominal_system)
+    study_data = store_data(systems)
+    return [datetime.datetime.now(), study_data, None, True]
+
+
+@app.callback(
+    Output("table_lcoe_nominal", "children"),
+    Input("flag_nominal_calculation_done", "children"),
+    # Input("flag_nominal_calculation_done_2", "children"),
+    State('nominal_storage', 'data'),
+    prevent_initial_call=True)
+def cbf_lcoeNominalResults_table_update(inp, state):
+    """
+    Update table
+    """
+    data = read_data(state)
+
+    # Write into table (could be reworked)
+    # ----------------------------------------------------------------------------------------------
+    df_table = pd.DataFrame(
+        columns=["System Name", "LCOE [€/kWh], Ammonia", "LCOE [€/kWh], Natural Gas"])
+    for key, system in data.items():
+        systemname = key.split("_")[0]
+        df_table.loc[systemname, "System Name"] = key.split("_")[0]
+        if key.split("_")[1] == "NH3":
+            df_table.loc[systemname, "LCOE [€/kWh], Ammonia"] = round(
+                system.df_results.loc["nominal", "LCOE"], 2)
+        else:
+            df_table.loc[systemname, "LCOE [€/kWh], Natural Gas"] = round(
+                system.df_results.loc["nominal", "LCOE"], 2)
+
+    table = dbc.Table.from_dataframe(df_table, bordered=True, hover=True, index=False, header=True)
+
+    return table.children
+
+
+@app.callback(
+    Output("graph_pie_lcoe_nominal", "figure"),
+    Input("flag_nominal_calculation_done", "children"),
+    State('nominal_storage', 'data'),
+    prevent_initial_call=True)
+def cbf_lcoeNominalResults_piechart_update(inp, state):
+    """
+    Update table
+    """
+    data = read_data(state)
+
+    labels = ["Capex", "Opex", "Fuel"]
+    HiPowAR_data = [sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Investment_fin),
+                    sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.OM_fin),
+                    sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin)]
+    SOFC_data = [sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Investment_fin),
+                 sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.OM_fin),
+                 sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin)]
+    ICE_data = [sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.Investment_fin),
+                sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.OM_fin),
+                sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin)]
+
+    # Create subplots: use 'domain' type for Pie subplot
+    fig = make_subplots(rows=1, cols=3, specs=[[{'type': 'domain'}, {'type': 'domain'},{'type': 'domain'}]])
+    fig.add_trace(go.Pie(labels=labels, values=HiPowAR_data, name="HiPowAR system"),
+                  1, 1)
+    fig.add_trace(go.Pie(labels=labels, values=SOFC_data, name="SOFC system"),
+                  1, 2)
+    fig.add_trace(go.Pie(labels=labels, values=ICE_data, name="ICE system"),
+                  1, 3)
+
+    # Use `hole` to create a donut-like pie chart
+    fig.update_traces(hole=.4, hoverinfo="label+percent+name")
+
+    fig.update_layout(
+        title_text="Cost distribution, Net Present Values",
+        # Add annotations in the center of the donut pies.
+        annotations=[dict(text='HiPowAR', x=0.11, y=0.5, font_size=15, showarrow=False),
+                     dict(text='SOFC', x=0.5, y=0.5, font_size=15, showarrow=False),
+                     dict(text='ICE', x=0.875, y=0.5, font_size=15, showarrow=False)],
+
+        template=custom_template,
+        autosize=False,
+        #width=500,
+        height=400
+    )
+
+    return fig
 
 
 @app.callback(
     Output('graph_lcoe_combined', 'figure'),
     Input("flag_sensitivity_calculation_done", "children"),
-    State('storage', 'data'),
+    State('study_storage', 'data'),
     prevent_initial_call=True)
 def cbf_lcoeStudyResults_plot_update(inp, state):
     """
@@ -567,8 +642,7 @@ def cbf_lcoeStudyResults_plot_update(inp, state):
     """
 
     # Read results from storage
-    systems = jsonpickle.loads(state)
-    systems = pickle.loads(systems)
+    systems = read_data(state)
 
     # Simple LCOE Comparison Plot
     y0 = systems["HiPowAR_NH3"].df_results["LCOE"]
@@ -618,7 +692,7 @@ def cbf_lcoeStudyResults_plot_update(inp, state):
 @app.callback(
     Output('lcoe-graph-sensitivity', 'figure'),
     Input("flag_sensitivity_calculation_done", "children"),
-    State('storage', 'data'),
+    State('study_storage', 'data'),
     prevent_initial_call=True)
 def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
     """
