@@ -13,6 +13,7 @@ class DataclassLCOEsimpleInput:
     eta_perc: float  # [%]
     discountrate_perc: float  # [%]
     cost_CO2_per_tonne: float  # [€/T_CO2]
+    CO2_costIncrease_percent_per_year: float  # [%]
     lifetime_yr: float  # [yr]
     operatinghoursyearly: float  # [hr/yr]
     fuel_name: str  # fuel name, as "NH3","NG",...
@@ -43,8 +44,9 @@ def lcoe(inp: DataclassLCOEsimpleInput):
 
     # Fuel Costs
     # ----------------------------
+    df.loc[:,"Fuel_cost_Eur_per_kWh"] = inp.fuel_cost_Eur_per_kWh * (1 + inp.fuel_costIncrease_percent_per_year / 100)**df.index
     df.loc[1:,
-    "Fuel"] = inp.size_kW * inp.operatinghoursyearly * inp.fuel_cost_Eur_per_kWh * 100 / inp.eta_perc
+    "Fuel"] = inp.size_kW * inp.operatinghoursyearly *  df.loc[1:,"Fuel_cost_Eur_per_kWh"] * 100 / inp.eta_perc
 
     # CO2 Emission [Tonnes]
     # ----------------------------
@@ -53,7 +55,17 @@ def lcoe(inp: DataclassLCOEsimpleInput):
 
     # CO2 Emission Cost
     # ----------------------------
-    df.loc[1:, "CO2_Emission_Cost"] = df.loc[:, "CO2_Emission_Tonnes"] * inp.cost_CO2_per_tonne
+    df.loc[:,"CO2_Cost_per_tonne"] = inp.cost_CO2_per_tonne * (1 + inp.CO2_costIncrease_percent_per_year / 100)**df.index
+    df.loc[:, "CO2_Emission_Cost"] = df.loc[:, "CO2_Emission_Tonnes"] * df.loc[:,"CO2_Cost_per_tonne"]
+
+    # Combined Cost
+    # ----------------------------
+    df.loc[:, "Cost_combined"] = df.loc[:, "Investment"] + df.loc[:, "OM"] + df.loc[:, "Fuel"] + df.loc[:, "CO2_Emission_Cost"]
+
+    # Combined Cumulative Cost
+    # ----------------------------
+    df.loc[:, "Cost_combined_cum"] = df.loc[:, "Cost_combined"].cumsum()
+
     # Electricity Generation
     # ----------------------------
     df.loc[1:, "Power"] = inp.size_kW * inp.operatinghoursyearly
@@ -75,7 +87,7 @@ def lcoe(inp: DataclassLCOEsimpleInput):
         axis=1)
 
     lcoe_val = (df["Investment_fin"].sum() + df["OM_fin"].sum() + df["Fuel_fin"].sum() +
-                df["CO2_Emission_Cost"].sum()) / df["Power_fin"].sum()  # [€/kWh]
+                df["CO2_Emission_Cost_fin"].sum()) / df["Power_fin"].sum()  # [€/kWh]
 
     return lcoe_val,df
 

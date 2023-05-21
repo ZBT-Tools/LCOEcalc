@@ -245,11 +245,13 @@ app.layout = dbc.Container([
                 dbc.AccordionItem(title="Environmental Settings", children=[
                     dbc.Row([
 
-                        dbc.Col(style_inpCard_LCOE(component="Financials", header="Financials",
+                        dbc.Col(style_inpCard_LCOE(component="Financials", header="Environment & Financials",
 
                                                    specific_row_input=[
                                                        {'par': "cost_CO2_per_tonne",
                                                         "label": "CO2 Emission Cost [€/T]"},
+                                                       {'par': "CO2_costIncrease_percent_per_year",
+                                                        "label": "CO2 Emission Cost Increase [%/yr]"},
                                                        {'par': "discountrate_perc",
                                                         'label': "Discount Rate [%]"},
                                                        {'par': "lifetime_yr",
@@ -259,7 +261,6 @@ app.layout = dbc.Container([
                                                    ), width=12),
                         dbc.Col([
                             dbc.Row(dbc.Col(
-
                                 style_inpCard_LCOE(header="NH3 Fuel Cost", component='Fuel_NH3',
                                                    specific_row_input=[
                                                        {'par': 'fuel_cost_Eur_per_kWh',
@@ -304,19 +305,23 @@ app.layout = dbc.Container([
                 #     # dbc.Row([html.Pre("Debug Calculation:", id="txt_dev_button_init")])
                 # ]),
             ], always_open=True),
-            dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done")]),
-            dbc.Row([html.Pre("Nominal Calculation Done:", id="flag_nominal_calculation_done_2")]),
-            dbc.Row([html.Pre("Sensitivity Calculation Done:",
-                              id="flag_sensitivity_calculation_done")]),
-            dbc.Row([html.Pre("",
-                              id="debug1")]),
             html.Hr(),
             dcc.Markdown('''
             #### About
             
-            Source: https://github.com/fkuschel/LCOEcalc
+            Source: 
+            
+            https://github.com/fkuschel/LCOEcalc
             
             '''),
+            dbc.Row([html.Div("Nominal Calculation Done:", id="flag_nominal_calculation_done",
+                              style={"display": "none"})]),
+            dbc.Row([html.Div("Nominal Calculation Done:", id="flag_nominal_calculation_done_2",
+                              style={"display": "none"})]),
+            dbc.Row([html.Div("Sensitivity Calculation Done:",
+                              id="flag_sensitivity_calculation_done", style={"display": "none"})]),
+            dbc.Row([html.Div("",
+                              id="debug1", style={"display": "none"})]),
         ], width=12, xl=4),
 
         # Visualization Column
@@ -326,7 +331,8 @@ app.layout = dbc.Container([
                     dbc.Collapse(children=[
                         dbc.Row(dbc.Col(
                             dbc.Table(id="table_lcoe_nominal", striped=False, bordered=True))),
-                        dbc.Row(dcc.Graph(id='graph_pie_lcoe_nominal', figure=empty_fig))
+                        dbc.Row(dcc.Graph(id='graph_pie_lcoe_nominal', figure=empty_fig)),
+                        dbc.Row(dcc.Graph(id='graph_yearly_lcoe_nominal', figure=empty_fig))
 
                     ], id="collapse_nom", is_open=False)
                 ], ),
@@ -595,16 +601,17 @@ def cbf_lcoeNominalResults_piechart_update(inp, state):
     labels = ["Capex", "Opex", "Fuel"]
     HiPowAR_data = [sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Investment_fin),
                     sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.OM_fin),
-                    sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin)]
+                    sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin)+sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin)]
     SOFC_data = [sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Investment_fin),
                  sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.OM_fin),
-                 sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin)]
+                 sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin+sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin))]
     ICE_data = [sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.Investment_fin),
                 sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.OM_fin),
-                sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin)]
+                sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin+sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin))]
 
     # Create subplots: use 'domain' type for Pie subplot
-    fig = make_subplots(rows=1, cols=3, specs=[[{'type': 'domain'}, {'type': 'domain'},{'type': 'domain'}]])
+    fig = make_subplots(rows=1, cols=3,
+                        specs=[[{'type': 'domain'}, {'type': 'domain'}, {'type': 'domain'}]])
     fig.add_trace(go.Pie(labels=labels, values=HiPowAR_data, name="HiPowAR system"),
                   1, 1)
     fig.add_trace(go.Pie(labels=labels, values=SOFC_data, name="SOFC system"),
@@ -613,20 +620,77 @@ def cbf_lcoeNominalResults_piechart_update(inp, state):
                   1, 3)
 
     # Use `hole` to create a donut-like pie chart
-    fig.update_traces(hole=.4, hoverinfo="label+percent+name")
+    fig.update_traces(hole=.4, hoverinfo="label+percent+name",textinfo='label')
 
     fig.update_layout(
         title_text="Cost distribution, Net Present Values",
+        showlegend=False,
         # Add annotations in the center of the donut pies.
         annotations=[dict(text='HiPowAR', x=0.11, y=0.5, font_size=15, showarrow=False),
                      dict(text='SOFC', x=0.5, y=0.5, font_size=15, showarrow=False),
-                     dict(text='ICE', x=0.875, y=0.5, font_size=15, showarrow=False)],
+                     dict(text='ICE', x=0.872, y=0.5, font_size=15, showarrow=False)],
 
         template=custom_template,
         autosize=False,
-        #width=500,
+        # width=500,
         height=400
     )
+
+    return fig
+
+
+@app.callback(
+    Output("graph_yearly_lcoe_nominal", "figure"),
+    Input("flag_nominal_calculation_done", "children"),
+    State('nominal_storage', 'data'),
+    prevent_initial_call=True)
+def cbf_lcoeNominalResults_yearly_chart_update(inp, state):
+    """
+    Update yearly line plot
+    """
+    data = read_data(state)
+
+    labels = ["Capex", "Opex", "Fuel"]
+    years = data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.index
+    HiPowAR_NH3_data = data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_cum
+    SOFC_NH3_data = data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_cum
+    ICE_NH3_data = data["ICE_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_cum
+    SOFC_NG_data = data["SOFC_NG"].df_results.LCOE_detailed.nominal.Cost_combined_cum
+    ICE_NG_data = data["ICE_NG"].df_results.LCOE_detailed.nominal.Cost_combined_cum
+
+    # Create traces
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=years, y=HiPowAR_NH3_data,
+                             mode='lines+markers',
+                             name='HiPowAR'))
+    fig.add_trace(go.Scatter(x=years, y=SOFC_NH3_data,
+                             mode='lines+markers',
+                             name='SOFC'))
+    fig.add_trace(go.Scatter(x=years, y=ICE_NH3_data,
+                             mode='lines+markers',
+                             name='ICE'))
+    fig.add_trace(go.Scatter(x=years, y=SOFC_NG_data,
+                             mode='lines+markers',
+                             line=dict(dash='dash'),
+                             name='SOFC NG'))
+    fig.add_trace(go.Scatter(x=years, y=ICE_NG_data,
+                             mode='lines+markers',
+                             line=dict(dash='dash'),
+                             name='ICE NG'))
+
+    fig.update_layout(
+        title_text="Cost Development",
+        # Add annotations in the center of the donut pies.
+        # annotations=[dict(text='HiPowAR', x=0.11, y=0.5, font_size=15, showarrow=False),
+        #              dict(text='SOFC', x=0.5, y=0.5, font_size=15, showarrow=False),
+        #              dict(text='ICE', x=0.875, y=0.5, font_size=15, showarrow=False)],
+
+        template=custom_template,
+        autosize=False,
+        # width=500,
+        height=500,
+        xaxis_title='Year',
+        yaxis_title='Cumulated Cost [€]')
 
     return fig
 
@@ -723,7 +787,7 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
 
         # Create first plot with only system parameters, identified by "p".
 
-        variation_pars = tb.columns.drop(["size_kW", "LCOE", "name", "fuel_name"])
+        variation_pars = tb.columns.drop(["size_kW", "LCOE", "name", "fuel_name","fuel_CO2emission_tonnes_per_MWh"])
 
         # variation_pars = variation_pars.drop([x for x in variation_pars if x[0] != "p"])
 
@@ -748,11 +812,13 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
             # Thus following rows could include "nominal" set again. This needs to be prevented.
             tbred.drop(index="nominal", inplace=True)
             rw = tbred.nsmallest(1,
-                                 modpar)  # find smallest value of modpar for all results and add to result_df
+                                 modpar)  # find smallest value of modpar for all results and add
+            # to result_df
             rw["modpar"] = modpar
             result_df = pd.concat([result_df, rw])
             rw = tbred.nlargest(1,
-                                modpar)  # find largest value of modpar for all results and add to result_df
+                                modpar)  # find largest value of modpar for all results and add
+            # to result_df
             rw["modpar"] = modpar
             result_df = pd.concat([result_df, rw])
 
