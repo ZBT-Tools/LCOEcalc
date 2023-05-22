@@ -1,3 +1,9 @@
+"""
+INFO:   DataHandler class (and this dash app in general) was first attempt to create app framework.
+        Framework approach is continued in https://github.com/ZBT-Tools/simulation-web-app-template.
+
+"""
+
 import logging
 from abc import ABC, abstractmethod
 
@@ -11,54 +17,62 @@ from dacite import from_dict
 
 # Logging
 logger = logging.getLogger(__name__)
-def store_data(data):
-    """
-    # https://github.com/jsonpickle/jsonpickle, as json.dumps can only handle simple variables, no objects, DataFrames..
-    # Info: Eigentlich sollte jsonpickle reichen, um dict mit Klassenobjekten, in denen DataFrames sind, zu speichern,
-    #       Es gibt jedoch Fehlermeldungen. Daher wird Datenstruktur vorher in pickle (Binärformat)
-    #       gespeichert und dieser anschließend in json konvertiert.
-    #       (Konvertierung in json ist notwendig für lokalen dcc storage)
-    """
-    data = pickle.dumps(data)
-    data = jsonpickle.dumps(data)
-
-    return data
 
 
 class DataHandler(ABC):
     """
-    InputHandler is initialized with GUI input field data (and sensitivity study parameter)
-    It provides functions for systematic generation of inputset and generation of Dataclass conform input
+    DataHandler is initialized with GUI input field data (and sensitivity study parameter)
+    It provides functions for generation of input sets and generation of Dataclass conform input
     It provides functions for running the code and storing the results.
     """
 
-    def __init__(self, df: pd.DataFrame, dc: dataclass, dict_additionalNames: dict = {},
-                 parID: str ="par"):
+    def __init__(self, df: pd.DataFrame,
+                 dc: dataclass,
+                 dict_additionalNames: dict = {},
+                 parID: str = "par"):
         """
-        Input
-        :param df:                    DataFrame with with field input created by scripts.gui_functions.read_input_fields()
-        :param dict_additionalNames:  In case, not all required inputs for dataclass are inside df they can be given here.
+        Input:
+        :param df:                    DataFrame with with gui field input created by
+                                        scripts.gui_functions.read_input_fields()
+        :param dict_additionalNames:  In case, not all required inputs for dataclass are inside
+                                        input field df they can be given here (e.g. constants).
 
         Creates:
-            - self.list_numeric_dc_pars, list of all numeric attributes of Dataclass, as only numeric ones will be varied
-            - self.dict_var_par,        dict with structure {par1: [val1,val2,...], par2: [val1,val2,val3], sorted values,
-                                        used for generation of variations
+            - self.list_numeric_dc_pars, list of all numeric attributes of Dataclass, as only
+                                            numeric ones will be varied in study
+            - self.dict_var_par,        dict with structure {par1: [val1,val2,...],
+                                            par2: [val1,val2,val3], sorted values,
+                                            used for generation of study sets
         """
+
         self.df_input_sets = None
         self.df_results = None
-        self.dc = dc
+        self.dc = dc  # DataClass
         self.dict_additionalNames = dict_additionalNames
-        self.parID = parID  # Defines column in df which names equals dc attr.
+        self.parID = parID  # Defines column name in df for name assignment with self.dc attributes.
+
+        # Add dict_additionalNames to df
+        for key, val in self.dict_additionalNames.items():
+            for parinfo in ["min", "nominal", "max"]:
+                addition = {'component': ['additional_parameter'],
+                            'par': [key],
+                            'parInfo': [parinfo],
+                            'type': ['constant input'],
+                            'value': [val]
+                            }
+                df = pd.concat([df, pd.DataFrame.from_dict(addition)], axis=0, ignore_index=True)
         # Distinguish numeric and non-numeric input parameter
-        self.list_numeric_dc_pars = [key for key, val in dc.__dataclass_fields__.items() if val.type.__name__ != 'str']
+        self.list_numeric_dc_pars = [key for key, val in dc.__dataclass_fields__.items() if
+                                     val.type.__name__ != 'str']
         self.list_nonnumeric_dc_pars = [key for key, val in dc.__dataclass_fields__.items() if
                                         val.type.__name__ == 'str']
 
         # Reduced input dfs of numeric & non-numeric parameter from Dataclass
         df_var_par = df.loc[df[parID].isin(self.list_numeric_dc_pars), :].copy()
-        # df_nonvar_par = df.loc[df.par.isin(self.list_nonnumeric_dc_pars), :].copy()
+        df_nonvar_par = df.loc[df.par.isin(self.list_nonnumeric_dc_pars), :].copy()
 
-        # Create dict with structure {par1: [val1,val2,...], par2: [val1,val2,val3], where values are sorted
+        # Create dict with structure {par1: [val1,val2,...], par2: [val1,val2,val3],
+        # where values are sorted
         dict_var_par = {}
         for par in self.list_numeric_dc_pars:
             val_list = list(df_var_par.loc[df_var_par[parID] == par, 'value'].values)
@@ -68,74 +82,56 @@ class DataHandler(ABC):
         self.dict_var_par = dict_var_par
 
     @abstractmethod
-    def create_input_sets(self) -> pd.DataFrame:
+    def create_input_sets(self, mode) -> pd.DataFrame:
         """
-        Output: Dataframe, columns: input parameter + one column with combined input in dataclass,
-                rows: individual input sets
+        Returns pd.DataFrame,
+            columns: input parameter + one column with combined input as
+                        DataClass object,
+            rows: individual input sets
         """
         pass
 
-    def submit_job(self, func, df: pd.DataFrame, inputcolumn="dataclass", resultcolumn="result",
+    def submit_job(self, func,  # df: pd.DataFrame,
+                   inputcolumn="dataclass", resultcolumn="result", mode="nominal",
                    removeInputcolumn=True):
         """
         #ToDO Documentation
+        Applies function to each row / each input set
+
+        :param mode:                if mode = "nominal", keep detailed information for advanced
+                                    plotting
         :param func:                Program or function to execute
-        :param df:                  DataFrame with input sets, generated by create_input_sets()
+        #:param df:                  DataFrame with input sets, generated by self.create_input_sets()
         :param inputcolumn:
         :param resultcolumn:
         :param removeInputcolumn:
         :return:
         """
 
-        logger.debug("Run calculations")
-        df[resultcolumn] = df[inputcolumn].apply(func)
+        logger.debug("Run calculation(s)")
+
+        results = self.df_input_sets[inputcolumn].apply(func)
+        self.df_input_sets[resultcolumn] = results.apply(lambda x: x[0])
+
+        if mode == 'nominal':  # Keep detailed results
+            self.df_input_sets[f'{resultcolumn}_detailed'] = results.apply(lambda x: x[1])
+        else:  # drop detailed results
+            pass
 
         if removeInputcolumn:
-            df.drop(columns=inputcolumn, inplace=True)
+            self.df_input_sets.drop(columns=inputcolumn, inplace=True)
+        self.df_results = self.df_input_sets
 
-        return df
+        return None
 
 
 class DataHandlerLCOE(DataHandler):
     """
-    HiPowAR LCOE Tool - Input Handler
+    HiPowAR LCOE Tool - Data Handler
     """
 
     def __init__(self, df: pd.DataFrame, dc: dataclass, dict_additionalNames: dict):
-        """
-        Input:  df: DataFrame with with columns: 'par','parInfo','value', as created by
-                    scripts.gui_functions.read_input_fields() Note:  each component gets its own InputHandler dc: Input
-                    dataclass for programm
-                dict_additionalNames: In case, not all required inputs for dataclass are inside df (example:
-                    string "Fuel Name" or string "Name"), they can be given here.
-                    Current implementation: Non-numeric values will be given in this dict. #ToDo generalize
-
-        Creates:
-            - self.list_numeric_dc_pars, list of all numeric attributes of Dataclass, as only numeric ones will be varied
-            - self.dict_var_par,        dict with structure {par1: [val1,val2,...], par2: [val1,val2,val3], sorted values,
-                                        used for generation of variations
-        """
-        self.df_results = None
-        self.df_input_sets = None
-        self.dc = dc
-        self.dict_additionalNames = dict_additionalNames
-        # Get all parameter of input DataClass which are numeric (= not string)
-        self.list_numeric_dc_pars = [key for key, val in dc.__dataclass_fields__.items() if val.type.__name__ != 'str']
-        self.list_nonnumeric_dc_pars = [key for key, val in dc.__dataclass_fields__.items() if
-                                        val.type.__name__ == 'str']
-
-        # Reduced input dfs of numeric & non-numeric parameter from Dataclass
-        df_var_par = df.loc[df.par.isin(self.list_numeric_dc_pars), :].copy()
-        # df_nonvar_par = df.loc[df.par.isin(self.list_nonnumeric_dc_pars), :].copy()
-
-        # Create dict with structure {par1: [val1,val2,...], par2: [val1,val2,val3], where values are sorted
-        dict_var_par = {}
-        for par in self.list_numeric_dc_pars:
-            val_list = list(df_var_par.loc[df_var_par.par == par, 'value'].values)
-            val_list = [x for x in val_list if x is not None]  # Remove None
-            val_list.sort()
-            dict_var_par[par] = val_list
-        self.dict_var_par = dict_var_par
+        super().__init__(df, dc, dict_additionalNames)
 
     def create_input_sets(self, mode: str):
         """
@@ -199,12 +195,10 @@ class DataHandlerLCOE(DataHandler):
             df.loc[:, key] = val
 
         # 3) Add additional column with dataclass inside
-        df.loc[:, "dataclass"] = df.apply(lambda row: from_dict(data_class=self.dc, data=row.to_dict()), axis=1)
+        df.loc[:, "dataclass"] = df.apply(
+            lambda row: from_dict(data_class=self.dc, data=row.to_dict()), axis=1)
 
         self.df_input_sets = df
-
-    def submit_job(self, func):
-        self.df_results = super().submit_job(func, self.df_input_sets, resultcolumn="LCOE")
 
 
 if __name__ == '__main__':
