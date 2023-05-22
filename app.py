@@ -22,9 +22,12 @@ Code Structure:
 """
 import logging
 import logging.config
+import os
+
 import pandas as pd
 import dash
 from dash import Input, Output, dcc, html, ctx, State, ALL
+from dash import DiskcacheManager, CeleryManager
 import dash_bootstrap_components as dbc
 import base64
 from flask_caching import Cache
@@ -39,6 +42,25 @@ from scripts.gui_functions import fill_input_fields, read_input_fields, build_in
     style_generic_dropdown, \
     style_inpCard_LCOE_comp, style_inpCard_LCOE
 from scripts.dash_functions import read_data, store_data
+
+# Use Celery w/ Redis for long callbacks
+#   See:
+#   https://dash.plotly.com/background-callbacks
+if 'REDIS_URL' in os.environ:
+    # Use Redis & Celery if REDIS_URL set as an env variable
+    from celery import Celery
+
+    celery_app = Celery(__name__, broker=os.environ['REDIS_URL'], backend=os.environ['REDIS_URL'])
+    celery_app.conf.update(BROKER_URL=os.environ['REDIS_URL'],
+                           CELERY_RESULT_BACKEND=os.environ['REDIS_URL'])
+    background_callback_manager = CeleryManager(celery_app)
+
+else:
+    # Diskcache for non-production apps when developing locally
+    import diskcache
+
+    cache = diskcache.Cache("./cache")
+    background_callback_manager = DiskcacheManager(cache)
 
 # Logging
 logging.config.fileConfig('logging.conf', disable_existing_loggers=False)
@@ -129,7 +151,8 @@ app.layout = dbc.Container([
 
     # Header Row with title & logos
     dbc.Row(
-        [dbc.Col(html.H2(["HiPowAR", html.Br(), "BETA VERSION! Electricity Generation Costs Calculation"]),
+        [dbc.Col(html.H2(
+            ["HiPowAR", html.Br(), "BETA VERSION! Electricity Generation Costs Calculation"]),
                  width=12, xl={"size": 4}),
          dbc.Col(html.Img(src='data:image/png;base64,{}'.format(hipowar_base64), width=100),
                  width=12, xl={"size": 2}, align="center"),
@@ -245,7 +268,8 @@ app.layout = dbc.Container([
                 dbc.AccordionItem(title="Environmental Settings", children=[
                     dbc.Row([
 
-                        dbc.Col(style_inpCard_LCOE(component="Financials", header="Environment & Financials",
+                        dbc.Col(style_inpCard_LCOE(component="Financials",
+                                                   header="Environment & Financials",
 
                                                    specific_row_input=[
                                                        {'par': "cost_CO2_per_tonne",
@@ -515,7 +539,9 @@ def cbf_quickstart_button_runNominalLCOE(*args):
     Output("collapse_study", "is_open"),
     Input("bt_run_study", "n_clicks"),
     State({'type': 'input', 'component': ALL, 'par': ALL, 'parInfo': ALL}, 'value'),
-    prevent_initial_call=True
+    prevent_initial_call=True,
+    background=True,
+    manager=background_callback_manager
 )
 def cbf_quickstart_button_runSensitivityLCOE(*args):
     """
@@ -599,13 +625,16 @@ def cbf_lcoeNominalResults_piechart_update(inp, state):
     labels = ["Capex", "Opex", "Fuel"]
     HiPowAR_data = [sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Investment_fin),
                     sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.OM_fin),
-                    sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin)+sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin)]
+                    sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin) + sum(
+                        data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin)]
     SOFC_data = [sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Investment_fin),
                  sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.OM_fin),
-                 sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin+sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin))]
+                 sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin + sum(
+                     data["SOFC_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin))]
     ICE_data = [sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.Investment_fin),
                 sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.OM_fin),
-                sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin+sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin))]
+                sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin + sum(
+                    data["ICE_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin))]
 
     # Create subplots: use 'domain' type for Pie subplot
     fig = make_subplots(rows=1, cols=3,
@@ -618,7 +647,7 @@ def cbf_lcoeNominalResults_piechart_update(inp, state):
                   1, 3)
 
     # Use `hole` to create a donut-like pie chart
-    fig.update_traces(hole=.4, hoverinfo="label+percent+name",textinfo='label')
+    fig.update_traces(hole=.4, hoverinfo="label+percent+name", textinfo='label')
 
     fig.update_layout(
         title_text="Cost distribution, Net Present Values",
@@ -785,8 +814,10 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
 
         # Create first plot with only system parameters, identified by "p".
 
-        variation_pars = tb.columns.drop(["size_kW", "LCOE", "name", "fuel_name","fuel_CO2emission_tonnes_per_MWh","CO2_costIncrease_percent_per_year",
-                                          "cost_CO2_per_tonne"])
+        variation_pars = tb.columns.drop(
+            ["size_kW", "LCOE", "name", "fuel_name", "fuel_CO2emission_tonnes_per_MWh",
+             "CO2_costIncrease_percent_per_year",
+             "cost_CO2_per_tonne"])
 
         # variation_pars = variation_pars.drop([x for x in variation_pars if x[0] != "p"])
 
