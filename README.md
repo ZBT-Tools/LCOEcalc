@@ -1,6 +1,8 @@
+# Beta Version
 # LCOEcalc - Plotly Dash Web Application for comparison and study of Electricity Generation Costs for different technologies
 
-![2023-02-16 10_01_45-Clipboard](https://user-images.githubusercontent.com/94350939/219317674-e90d0377-c063-442a-8e0b-2293ad76b707.png)
+
+![Screenshot 2023-05-22 at 09-49-30 Dash](https://github.com/fkuschel/LCOEcalc/assets/94350939/a79871b2-ff91-4e9c-8c85-dbd8867227df)
 
 ## Usage
 
