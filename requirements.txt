@@ -1,5 +1,5 @@
 gunicorn
-dash
+dash[diskcache,celery]
 dash_bootstrap_components
 pandas
 plotly
@@ -9,3 +9,7 @@ setuptools
 dash-bootstrap-templates
 openpyxl
 Flask-Caching
+redis
+celery
+diskcache
+
