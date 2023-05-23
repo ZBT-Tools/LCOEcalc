@@ -600,11 +600,12 @@ def cbf_lcoeNominalResults_table_update(inp, state):
         systemname = key.split("_")[0]
         df_table.loc[systemname, "System Name"] = key.split("_")[0]
         if key.split("_")[1] == "NH3":
-            df_table.loc[systemname, "LCOE [€/kWh], Ammonia"] = round(
-                system.df_results.loc["nominal", "LCOE"], 2)
+            df_table.loc[systemname, "LCOE [€/kWh], Ammonia"] = \
+                f'{system.df_results.loc["nominal", "LCOE"]:9.2f}'
+
         else:
-            df_table.loc[systemname, "LCOE [€/kWh], Natural Gas"] = round(
-                system.df_results.loc["nominal", "LCOE"], 2)
+            df_table.loc[systemname, "LCOE [€/kWh], Natural Gas"] = \
+                f'{system.df_results.loc["nominal", "LCOE"]:9.2f}'
 
     table = dbc.Table.from_dataframe(df_table, bordered=True, hover=True, index=False, header=True)
 

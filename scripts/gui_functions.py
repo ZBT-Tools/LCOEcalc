@@ -52,7 +52,7 @@ def style_inpRow_generic(label: str,
         dct_id.update(fieldspec_id)  # Merge row and field id
 
         col = dbc.Col(dbc.Input(id=dct_id,
-                                #type=fieldtype[n],
+                                # type=fieldtype[n],
                                 disabled=disabled[n],
                                 size="sm"),
                       **widths[1])
