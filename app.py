@@ -651,12 +651,12 @@ def cbf_lcoeNominalResults_piechart_update(inp, state):
     fig.update_traces(hole=.4, hoverinfo="label+percent+name", textinfo='label')
 
     fig.update_layout(
-        title_text="Cost distribution, Net Present Values",
+        title_text="Cost distribution, Net Present Values (Ammonia fueled systems)",
         showlegend=False,
         # Add annotations in the center of the donut pies.
-        annotations=[dict(text='HiPowAR', x=0.11, y=0.5, font_size=15, showarrow=False),
-                     dict(text='SOFC', x=0.5, y=0.5, font_size=15, showarrow=False),
-                     dict(text='ICE', x=0.872, y=0.5, font_size=15, showarrow=False)],
+        annotations=[dict(text='HiPowAR', x=0.10, y=-0.1, font_size=15, showarrow=False),
+                     dict(text='SOFC', x=0.5, y=-0.1, font_size=15, showarrow=False),
+                     dict(text='ICE', x=0.872, y=-0.1, font_size=15, showarrow=False)],
 
         template=custom_template,
         autosize=False,
@@ -747,7 +747,7 @@ def cbf_lcoeStudyResults_plot_update(inp, state):
     fig.add_trace(go.Box(y=y0, name='HiPowAR',
                          boxpoints='all',
                          marker=dict(color='rgb(160,7,97)'),
-                         line=dict(color='rgb(31,148,175)'),
+                         line=dict(color='rgb(160,7,97)'),  # rgb(31,148,175)
 
                          ))
     fig.add_trace(go.Box(y=y1, name='SOFC',
