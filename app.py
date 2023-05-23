@@ -71,7 +71,7 @@ logger = logging.getLogger(__name__)
 
 # Note: Storage elements (dcc.Store) are defined inside app layout below
 
-system_components = ["HiPowAR", "ICE", "SOFC"]
+system_components = ["HiPowAR", "SOFC", "ICE"]
 
 # Bayer; Ralf (2021): Informationsblatt CO2-Faktoren. Bundesförderung für Energie- und
 # Ressourceneffizienz in der Wirtschaft - Zuschuss.
@@ -212,36 +212,36 @@ app.layout = dbc.Container([
 
                                                        elements=df_input["Systems"].columns[
                                                                 first_clm:]),
-                                width=6, xl=4),
+                                width=6, xxl=4),
                         dbc.Col(html.P(df_input["Systems"].columns[-1], id="txt_Preset_Selection"),
-                                width=12, xl=8)]),
+                                width=12, xxl=8)]),
                     # Dropdown Financial Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_Financial", label="Financial",
                                                        elements=df_input["Financial"].columns[
                                                                 first_clm:]),
-                                width=6, xl=4),
+                                width=6, xxl=4),
                         dbc.Col(
                             html.P(df_input["Financial"].columns[-1], id="txt_Financial_Selection"),
-                            width=12, xl=8)]),
+                            width=12, xxl=8)]),
                     # Dropdown NH3 Fuel Cost Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3 Cost",
                                                        elements=df_input["Fuel_NH3"].columns[
                                                                 first_clm:]),
-                                width=6, xl=4),
+                                width=6, xxl=4),
                         dbc.Col(html.P(df_input["Fuel_NH3"].columns[-1],
                                        id="txt_NH3_fuel_cost_Preset_Selection"),
-                                width=12, xl=8)]),
+                                width=12, xxl=8)]),
                     # Dropdown NG Fuel Cost Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_NG_fuel_cost", label="NG",
                                                        elements=df_input["Fuel_NG"].columns[
                                                                 first_clm:]),
-                                width=6, xl=4),
+                                width=6, xxl=4),
                         dbc.Col(html.P(df_input["Fuel_NG"].columns[-1],
                                        id="txt_NG_fuel_cost_Preset_Selection"),
-                                width=12, xl=8)]),
+                                width=12, xxl=8)]),
 
                 ]),
 
@@ -344,7 +344,7 @@ app.layout = dbc.Container([
                               id="flag_sensitivity_calculation_done", style={"display": "none"})]),
             dbc.Row([html.Div("",
                               id="debug1", style={"display": "none"})]),
-        ], width=12, xl=4),
+        ], width=12, lg= 5,xxl=4),
 
         # Visualization Column
         dbc.Col([
@@ -375,7 +375,7 @@ app.layout = dbc.Container([
                     )], id="collapse_study", is_open=False))
                 ,
             ], active_item=["item-0", "item-1"], always_open=True)  #
-        ], width=12, xl=8)
+        ], width=12,lg= 7, xxl=8)
 
     ])
 
