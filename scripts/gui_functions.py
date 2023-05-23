@@ -267,7 +267,7 @@ def read_input_fields(state_selection: list) -> pd.DataFrame:
         for el in state_list:
             el_dict = el['id']
             try:
-                el_dict.update({'value': el['value']})
+                el_dict.update({'value': float(el['value'])})
             except KeyError:
                 el_dict.update({'value': None})
 
