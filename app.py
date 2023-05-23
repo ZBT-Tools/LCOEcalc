@@ -745,24 +745,25 @@ def cbf_lcoeStudyResults_plot_update(inp, state):
     fig = go.Figure()
 
     fig.add_trace(go.Box(y=y0, name='HiPowAR',
-                         boxpoints='all',
+                         boxpoints=False,
                          marker=dict(color='rgb(160,7,97)'),
-                         line=dict(color='rgb(160,7,97)'),  # rgb(31,148,175)
+                         line=dict(color='rgb(160,7,97)'),  # rgb(31,148,175),
+
 
                          ))
     fig.add_trace(go.Box(y=y1, name='SOFC',
-                         marker=dict(color='lightseagreen'), boxpoints='all'))
+                         marker=dict(color='lightseagreen'),  boxpoints=False))
     fig.add_trace(go.Box(y=y2, name='ICE',
-                         marker=dict(color='lightskyblue'), boxpoints='all'))
+                         marker=dict(color='lightskyblue'), boxpoints=False))
     fig.add_trace(go.Box(y=y3, name='SOFC, NG',
-                         marker=dict(color='lightseagreen'), boxpoints='all'))
+                         marker=dict(color='lightseagreen'),  boxpoints=False))
     fig.add_trace(go.Box(y=y4, name='ICE, NG',
-                         marker=dict(color='lightskyblue'), boxpoints='all'))
+                         marker=dict(color='lightskyblue'),  boxpoints=False))
 
     fig.update_layout(
         title="Levelized Cost of Electricity - Green Ammonia ",
         # xaxis_title="",
-        yaxis_title="LCOE [€/kW]",
+        yaxis_title="LCOE [€/kWh]",
         template=custom_template)
 
     fig.add_vline(x=2.4, line_width=3, line_dash="dash", line_color="green")
@@ -805,8 +806,8 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
 
     fig = make_subplots(rows=1, cols=1, shared_yaxes=True,
                         # x_title='Your master x-title',
-                        y_title='LOEC [€/kW]',
-                        subplot_titles=('System Sensitivity', 'Environment Sensitivity'))
+                        y_title='LCOE [€/kWh]',
+                        subplot_titles=('System Sensitivity (Ammonia Systems)', 'Environment Sensitivity'))
 
     for system in ["HiPowAR_NH3", "SOFC_NH3", "ICE_NH3"]:
 
