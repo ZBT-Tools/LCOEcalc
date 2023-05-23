@@ -101,18 +101,19 @@ def multisystem_calculation(df: pd.DataFrame, system_names: list, fuel_names: li
 
     for system in system_names:
         for fuel in fuel_names:
-            # Reduce to one system and one fuel
-            dfred = df.loc[(df.component == system) |
-                           (df.component == "Financials") |
-                           (df.component == fuel), :]
+            if (system != "HiPowAR") or (fuel != "Fuel_NG"):
+                # Reduce to one system and one fuel
+                dfred = df.loc[(df.component == system) |
+                               (df.component == "Financials") |
+                               (df.component == fuel), :]
 
-            # Init Input Handler
-            inputhandler = DataHandlerLCOE(df=dfred, dc=DataclassLCOEsimpleInput,
-                                           dict_additionalNames={"name": system, "fuel_name": fuel,
-                                                                 **fuel_prop[fuel]})
-            inputhandler.create_input_sets(mode=mode)
-            inputhandler.submit_job(func=lcoe, resultcolumn="LCOE", mode=mode)
-            dict_systems.update({f"{system}_{fuel[5:]}": inputhandler})
+                # Init Input Handler
+                inputhandler = DataHandlerLCOE(df=dfred, dc=DataclassLCOEsimpleInput,
+                                               dict_additionalNames={"name": system, "fuel_name": fuel,
+                                                                     **fuel_prop[fuel]})
+                inputhandler.create_input_sets(mode=mode)
+                inputhandler.submit_job(func=lcoe, resultcolumn="LCOE", mode=mode)
+                dict_systems.update({f"{system}_{fuel[5:]}": inputhandler})
 
     return dict_systems
 
