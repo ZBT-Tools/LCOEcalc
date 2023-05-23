@@ -71,7 +71,7 @@ logger = logging.getLogger(__name__)
 
 # Note: Storage elements (dcc.Store) are defined inside app layout below
 
-system_components = ["HiPowAR", "ICE", "SOFC"]
+system_components = ["HiPowAR", "SOFC", "ICE"]
 
 # Bayer; Ralf (2021): Informationsblatt CO2-Faktoren. Bundesförderung für Energie- und
 # Ressourceneffizienz in der Wirtschaft - Zuschuss.
@@ -212,36 +212,36 @@ app.layout = dbc.Container([
 
                                                        elements=df_input["Systems"].columns[
                                                                 first_clm:]),
-                                width=6, xl=4),
+                                width=6, xxl=4),
                         dbc.Col(html.P(df_input["Systems"].columns[-1], id="txt_Preset_Selection"),
-                                width=12, xl=8)]),
+                                width=12, xxl=8)]),
                     # Dropdown Financial Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_Financial", label="Financial",
                                                        elements=df_input["Financial"].columns[
                                                                 first_clm:]),
-                                width=6, xl=4),
+                                width=6, xxl=4),
                         dbc.Col(
                             html.P(df_input["Financial"].columns[-1], id="txt_Financial_Selection"),
-                            width=12, xl=8)]),
+                            width=12, xxl=8)]),
                     # Dropdown NH3 Fuel Cost Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3 Cost",
                                                        elements=df_input["Fuel_NH3"].columns[
                                                                 first_clm:]),
-                                width=6, xl=4),
+                                width=6, xxl=4),
                         dbc.Col(html.P(df_input["Fuel_NH3"].columns[-1],
                                        id="txt_NH3_fuel_cost_Preset_Selection"),
-                                width=12, xl=8)]),
+                                width=12, xxl=8)]),
                     # Dropdown NG Fuel Cost Preset Selection
                     dbc.Row([
                         dbc.Col(style_generic_dropdown(id_name="dd_NG_fuel_cost", label="NG",
                                                        elements=df_input["Fuel_NG"].columns[
                                                                 first_clm:]),
-                                width=6, xl=4),
+                                width=6, xxl=4),
                         dbc.Col(html.P(df_input["Fuel_NG"].columns[-1],
                                        id="txt_NG_fuel_cost_Preset_Selection"),
-                                width=12, xl=8)]),
+                                width=12, xxl=8)]),
 
                 ]),
 
@@ -344,7 +344,7 @@ app.layout = dbc.Container([
                               id="flag_sensitivity_calculation_done", style={"display": "none"})]),
             dbc.Row([html.Div("",
                               id="debug1", style={"display": "none"})]),
-        ], width=12, xl=4),
+        ], width=12, lg= 5,xxl=4),
 
         # Visualization Column
         dbc.Col([
@@ -375,7 +375,7 @@ app.layout = dbc.Container([
                     )], id="collapse_study", is_open=False))
                 ,
             ], active_item=["item-0", "item-1"], always_open=True)  #
-        ], width=12, xl=8)
+        ], width=12,lg= 7, xxl=8)
 
     ])
 
@@ -600,11 +600,12 @@ def cbf_lcoeNominalResults_table_update(inp, state):
         systemname = key.split("_")[0]
         df_table.loc[systemname, "System Name"] = key.split("_")[0]
         if key.split("_")[1] == "NH3":
-            df_table.loc[systemname, "LCOE [€/kWh], Ammonia"] = round(
-                system.df_results.loc["nominal", "LCOE"], 2)
+            df_table.loc[systemname, "LCOE [€/kWh], Ammonia"] = \
+                f'{system.df_results.loc["nominal", "LCOE"]:9.2f}'
+
         else:
-            df_table.loc[systemname, "LCOE [€/kWh], Natural Gas"] = round(
-                system.df_results.loc["nominal", "LCOE"], 2)
+            df_table.loc[systemname, "LCOE [€/kWh], Natural Gas"] = \
+                f'{system.df_results.loc["nominal", "LCOE"]:9.2f}'
 
     table = dbc.Table.from_dataframe(df_table, bordered=True, hover=True, index=False, header=True)
 
@@ -650,12 +651,12 @@ def cbf_lcoeNominalResults_piechart_update(inp, state):
     fig.update_traces(hole=.4, hoverinfo="label+percent+name", textinfo='label')
 
     fig.update_layout(
-        title_text="Cost distribution, Net Present Values",
+        title_text="Cost distribution, Net Present Values (Ammonia fueled systems)",
         showlegend=False,
         # Add annotations in the center of the donut pies.
-        annotations=[dict(text='HiPowAR', x=0.11, y=0.5, font_size=15, showarrow=False),
-                     dict(text='SOFC', x=0.5, y=0.5, font_size=15, showarrow=False),
-                     dict(text='ICE', x=0.872, y=0.5, font_size=15, showarrow=False)],
+        annotations=[dict(text='HiPowAR', x=0.10, y=-0.1, font_size=15, showarrow=False),
+                     dict(text='SOFC', x=0.5, y=-0.1, font_size=15, showarrow=False),
+                     dict(text='ICE', x=0.872, y=-0.1, font_size=15, showarrow=False)],
 
         template=custom_template,
         autosize=False,
@@ -744,24 +745,25 @@ def cbf_lcoeStudyResults_plot_update(inp, state):
     fig = go.Figure()
 
     fig.add_trace(go.Box(y=y0, name='HiPowAR',
-                         boxpoints='all',
+                         boxpoints=False,
                          marker=dict(color='rgb(160,7,97)'),
-                         line=dict(color='rgb(31,148,175)'),
+                         line=dict(color='rgb(160,7,97)'),  # rgb(31,148,175),
+
 
                          ))
     fig.add_trace(go.Box(y=y1, name='SOFC',
-                         marker=dict(color='lightseagreen'), boxpoints='all'))
+                         marker=dict(color='lightseagreen'),  boxpoints=False))
     fig.add_trace(go.Box(y=y2, name='ICE',
-                         marker=dict(color='lightskyblue'), boxpoints='all'))
+                         marker=dict(color='lightskyblue'), boxpoints=False))
     fig.add_trace(go.Box(y=y3, name='SOFC, NG',
-                         marker=dict(color='lightseagreen'), boxpoints='all'))
+                         marker=dict(color='lightseagreen'),  boxpoints=False))
     fig.add_trace(go.Box(y=y4, name='ICE, NG',
-                         marker=dict(color='lightskyblue'), boxpoints='all'))
+                         marker=dict(color='lightskyblue'),  boxpoints=False))
 
     fig.update_layout(
         title="Levelized Cost of Electricity - Green Ammonia ",
         # xaxis_title="",
-        yaxis_title="LCOE [€/kW]",
+        yaxis_title="LCOE [€/kWh]",
         template=custom_template)
 
     fig.add_vline(x=2.4, line_width=3, line_dash="dash", line_color="green")
@@ -804,8 +806,8 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
 
     fig = make_subplots(rows=1, cols=1, shared_yaxes=True,
                         # x_title='Your master x-title',
-                        y_title='LOEC [€/kW]',
-                        subplot_titles=('System Sensitivity', 'Environment Sensitivity'))
+                        y_title='LCOE [€/kWh]',
+                        subplot_titles=('System Sensitivity (Ammonia Systems)', 'Environment Sensitivity'))
 
     for system in ["HiPowAR_NH3", "SOFC_NH3", "ICE_NH3"]:
 

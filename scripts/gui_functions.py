@@ -52,7 +52,7 @@ def style_inpRow_generic(label: str,
         dct_id.update(fieldspec_id)  # Merge row and field id
 
         col = dbc.Col(dbc.Input(id=dct_id,
-                                type=fieldtype[n],
+                                # type=fieldtype[n],
                                 disabled=disabled[n],
                                 size="sm"),
                       **widths[1])
@@ -267,7 +267,7 @@ def read_input_fields(state_selection: list) -> pd.DataFrame:
         for el in state_list:
             el_dict = el['id']
             try:
-                el_dict.update({'value': el['value']})
+                el_dict.update({'value': float(el['value'])})
             except KeyError:
                 el_dict.update({'value': None})
 
