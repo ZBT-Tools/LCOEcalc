@@ -20,7 +20,6 @@ Code Structure:
 
 
 """
-import logging
 import logging.config
 import os
 
@@ -30,18 +29,15 @@ from dash import Input, Output, dcc, html, ctx, State, ALL
 from dash import DiskcacheManager, CeleryManager
 import dash_bootstrap_components as dbc
 import base64
-from flask_caching import Cache
 import pickle
 import jsonpickle
 import datetime
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-from scripts.lcoe_calculation import multisystem_calculation
-from scripts.dash_functions import store_data
-from scripts.gui_functions import fill_input_fields, read_input_fields, build_initial_collect, \
-    style_generic_dropdown, \
+from webapp.scripts.lcoe_calculation import multisystem_calculation
+from webapp.scripts.gui_functions import fill_input_fields, read_input_fields, style_generic_dropdown, \
     style_inpCard_LCOE_comp, style_inpCard_LCOE
-from scripts.dash_functions import read_data, store_data
+from webapp.scripts.dash_functions import read_data, store_data
 
 # Use Celery w/ Redis for long callbacks
 #   See:
@@ -63,7 +59,7 @@ else:
     background_callback_manager = DiskcacheManager(cache)
 
 # Logging
-logging.config.fileConfig('logging.conf', disable_existing_loggers=False)
+logging.config.fileConfig('webapp/logging.conf', disable_existing_loggers=False)
 logger = logging.getLogger(__name__)
 
 # 1. Tool specific definitions & Initialization prior start
@@ -80,18 +76,18 @@ fuel_properties = {"Fuel_NH3": {"fuel_CO2emission_tonnes_per_MWh": 0},
                    "Fuel_NG": {"fuel_CO2emission_tonnes_per_MWh": 0.02}}
 
 # Input definition table with presets, excel table
-df_input = pd.read_excel("input/Dash_LCOE_ConfigurationV4.xlsx",
+df_input = pd.read_excel("webapp/input/Dash_LCOE_ConfigurationV4.xlsx",
                          sheet_name=["Systems", "Financial", "Fuel_NH3", "Fuel_NG"])
 
 first_clm = 5
 
 # Load images (issue with standard image load, due to png?!)
 # Fix: https://community.plotly.com/t/png-image-not-showing/15713/2
-hipowar_png = 'img/Logo_HiPowAR.png'
+hipowar_png = 'webapp/img/Logo_HiPowAR.png'
 hipowar_base64 = base64.b64encode(open(hipowar_png, 'rb').read()).decode('ascii')
-eu_png = 'img/EU_Logo.png'
+eu_png = 'webapp/img/EU_Logo.png'
 eu_base64 = base64.b64encode(open(eu_png, 'rb').read()).decode('ascii')
-zbt_png = 'img/ZBT_Logo_RGB_B_L-QUADRAT.jpg'
+zbt_png = 'webapp/img/ZBT_Logo_RGB_B_L-QUADRAT.jpg'
 zbt_base64 = base64.b64encode(open(zbt_png, 'rb').read()).decode('ascii')
 
 # App initialization

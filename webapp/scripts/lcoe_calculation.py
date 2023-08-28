@@ -1,6 +1,6 @@
 import pandas as pd
 from dataclasses import dataclass
-from scripts.data_handler import DataHandlerLCOE
+from webapp.scripts.data_handler import DataHandlerLCOE
 
 
 @dataclass
