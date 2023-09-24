@@ -113,9 +113,10 @@ class DataHandler(ABC):
         results = self.df_input_sets[inputcolumn].apply(func)
         self.df_input_sets[resultcolumn] = results.apply(lambda x: x[0])
 
-        if mode == 'nominal':  # Keep detailed results
+        if (mode == 'nominal') or (mode == 'detailed'):  # Keep detailed results
             self.df_input_sets[f'{resultcolumn}_detailed'] = results.apply(lambda x: x[1])
         else:  # drop detailed results
+            self.df_input_sets[f'{resultcolumn}_detailed'] = results.apply(lambda x: x[1])
             pass
 
         if removeInputcolumn:
@@ -157,7 +158,7 @@ class DataHandlerLCOE(DataHandler):
             df.loc["nominal", key] = median(val)
             df.loc["max", key] = max(val)
 
-        if mode == "all":
+        if mode == "all":  # Full Factorial
             # Create all possible combinations.
             df2 = pd.DataFrame(list(product(*[val for key, val in self.dict_var_par.items()])),
                                columns=[key for key, val in self.dict_var_par.items()])
