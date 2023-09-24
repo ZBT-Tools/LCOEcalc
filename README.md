@@ -1,4 +1,5 @@
-# Beta Version
+![download](https://user-images.githubusercontent.com/94350939/219314988-fee9bef7-f29e-4256-a8f6-80418eb16159.png)
+
 # LCOEcalc - Plotly Dash Web Application for comparison and study of Electricity Generation Costs for different technologies
 
 
@@ -33,4 +34,4 @@ higher efficiencies in energy production than internal combustion engines and st
 
 https://www.hipowar.eu/en/home
 
-![download](https://user-images.githubusercontent.com/94350939/219314988-fee9bef7-f29e-4256-a8f6-80418eb16159.png)
+
