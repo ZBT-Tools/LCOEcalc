@@ -1,2 +1,3 @@
 web: gunicorn webapp.app:server
-worker: celery worker --app=app:celery_app
+worker: celery --app=app:celery_app worker
+'celery --app celeryapp worker
