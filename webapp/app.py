@@ -332,9 +332,8 @@ app.layout = dbc.Container([
             ], always_open=True),
             html.Hr(),
             dcc.Markdown('''
-            #### About
-            
-            https://github.com/fkuschel/LCOEcalc
+            #### Contact
+            https://www.linkedin.com/in/florian-kuschel/
             
             '''),
             dbc.Row([html.Div("Nominal Calculation Done:", id="flag_nominal_calculation_done",
