@@ -39,9 +39,9 @@ from webapp.scripts.gui_functions import fill_input_fields, read_input_fields, \
 from webapp.scripts.dash_functions import read_data, store_data
 
 # To implement nicely
-comparison_par_name = "Fuel Costs [€/kW]"
+comparison_par_name = "Operation Hours [hrs/yr]"
 COMP_SYS = "HiPowAR_NH3"
-MODPAR = "fuel_cost_Eur_per_kWh"
+MODPAR = "operatinghoursyearly"
 
 
 
@@ -190,6 +190,11 @@ app.layout = dbc.Container([
                         Define settings for calculation of electricity costs below. Choose from predefined system &
                         economic boundary conditions or define own study input.
                         Run calculation of nominal values or full study by clicking buttons below.
+
+                        #### Note:
+                        
+                        The predefined figures are the status of the work currently in progress and are to be regarded with uncertainties. 
+                        The figures are continuously updated.
 
                         '''),
             html.Hr(),
@@ -881,7 +886,7 @@ def cbf_lcoeComparisonResults_piechart_update(inp, state):
     fig.update_traces(hole=.4, hoverinfo="label+percent+name", textinfo='label')
 
     fig.update_layout(
-        title_text="Cost distribution, Net Present Values (Ammonia fueled systems)",
+        title_text="Cost distribution, Net Present Values",
         showlegend=False,
         # Add annotations in the center of the donut pies.
         annotations=[dict(text='Nominal', x=0.10, y=-0.1, font_size=15, showarrow=False),
@@ -1282,4 +1287,4 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True, port=8080)
+    app.run_server(debug=True, port=8000)
