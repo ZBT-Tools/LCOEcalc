@@ -82,7 +82,7 @@ fuel_properties = {"Fuel_NH3": {"fuel_CO2emission_tonnes_per_MWh": 0},
                    "Fuel_NG": {"fuel_CO2emission_tonnes_per_MWh": 0.02}}
 
 # Input definition table with presets, excel table
-df_input = pd.read_excel("webapp/input/Dash_LCOE_ConfigurationV4.xlsx",
+df_input = pd.read_excel("webapp/input/Dash_LCOE_ConfigurationV5.xlsx",
                          sheet_name=["Systems", "Financial", "Fuel_NH3", "Fuel_NG"])
 
 first_clm = 5
@@ -233,7 +233,7 @@ app.layout = dbc.Container([
                             width=12, xxl=8)]),
                     # Dropdown NH3 Fuel Cost Preset Selection
                     dbc.Row([
-                        dbc.Col(style_generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3 Cost",
+                        dbc.Col(style_generic_dropdown(id_name="dd_NH3_fuel_cost", label="NH3",
                                                        elements=df_input["Fuel_NH3"].columns[
                                                                 first_clm:]),
                                 width=6, xxl=4),
@@ -291,23 +291,29 @@ app.layout = dbc.Container([
                                                    ), width=12),
                         dbc.Col([
                             dbc.Row(dbc.Col(
-                                style_inpCard_LCOE(header="NH3 Fuel Cost", component='Fuel_NH3',
+                                style_inpCard_LCOE(header="NH3 Fuel", component='Fuel_NH3',
                                                    specific_row_input=[
                                                        {'par': 'fuel_cost_Eur_per_kWh',
                                                         'label': "NH3 cost [€/kWh]"},
                                                        {'par': 'fuel_costIncrease_percent_per_year',
-                                                        'label': "NH3 cost increase [%/yr]"}]),
+                                                        'label': "NH3 cost increase [%/yr]"},
+                                                       {'par': 'fuel_footprint_kgCO2_per_kWh',
+                                                        'label': "CO2eq production footprint [kg/kWh]"},
+                                                   ]),
                                 width=12,
                             )),
 
                             dbc.Row(dbc.Col(
-                                style_inpCard_LCOE(header="NG Fuel Cost", component='Fuel_NG',
+                                style_inpCard_LCOE(header="NG Fuel", component='Fuel_NG',
                                                    specific_row_input=[
                                                        {'par': 'fuel_cost_Eur_per_kWh',
                                                         'label': "NG cost ["
                                                                  "€/kWh]"},
                                                        {'par': 'fuel_costIncrease_percent_per_year',
-                                                        'label': "NG cost increase [%/yr]"}]),
+                                                        'label': "NG cost increase [%/yr]"},
+                                                       {'par': 'fuel_footprint_kgCO2_per_kWh',
+                                                        'label': "CO2eq production footprint [kg/kWh]"}
+                                                   ]),
                                 width=12
                             ))
 
@@ -359,7 +365,9 @@ app.layout = dbc.Container([
                         dbc.Row(dbc.Col(
                             dbc.Table(id="table_lcoe_nominal", striped=False, bordered=True))),
                         dbc.Row(dcc.Graph(id='graph_pie_lcoe_nominal', figure=empty_fig)),
-                        dbc.Row(dcc.Graph(id='graph_yearly_lcoe_nominal', figure=empty_fig))
+                        dbc.Row(dcc.Graph(id='graph_pie_emission_nominal', figure=empty_fig)),
+                        dbc.Row(dcc.Graph(id='graph_yearly_lcoe_nominal', figure=empty_fig)),
+                        dbc.Row(dcc.Graph(id='graph_yearly_emission_nominal', figure=empty_fig))
 
                     ], id="collapse_nom", is_open=False)
                 ], ),
@@ -640,19 +648,19 @@ def cbf_lcoeNominalResults_piechart_update(inp, state):
     """
     data = read_data(state)
 
-    labels = ["Capex", "Opex", "Fuel"]
+    labels = ["Capex", "Opex", "Fuel","Emissions"]
     HiPowAR_data = [sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Investment_fin),
                     sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.OM_fin),
-                    sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin) + sum(
-                        data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin)]
+                    sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin),
+                    sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin)]
     SOFC_data = [sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Investment_fin),
                  sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.OM_fin),
-                 sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin + sum(
-                     data["SOFC_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin))]
+                 sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin),
+                 sum(data["SOFC_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin)]
     ICE_data = [sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.Investment_fin),
                 sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.OM_fin),
-                sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin + sum(
-                    data["ICE_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin))]
+                sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin),
+                sum(data["ICE_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Cost_fin)]
 
     # Create subplots: use 'domain' type for Pie subplot
     fig = make_subplots(rows=1, cols=3,
@@ -736,6 +744,57 @@ def cbf_lcoeNominalResults_yearly_chart_update(inp, state):
         height=500,
         xaxis_title='Year',
         yaxis_title='Cumulated Cost [€]')
+
+    return fig
+
+@app.callback(
+    Output("graph_yearly_emission_nominal", "figure"),
+    Input("flag_nominal_calculation_done", "children"),
+    State('nominal_storage', 'data'),
+    prevent_initial_call=True)
+def cbf_lcoeNominalEmissionResults_yearly_chart_update(inp, state):
+    """
+    Update yearly emission line plot
+    """
+    data = read_data(state)
+
+    labels = ["Capex", "Opex", "Fuel"]
+    years = data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.index
+    HiPowAR_NH3_data = data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Tonnes_cum
+    SOFC_NH3_data = data["SOFC_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Tonnes_cum
+    ICE_NH3_data = data["ICE_NH3"].df_results.LCOE_detailed.nominal.CO2_Emission_Tonnes_cum
+    SOFC_NG_data = data["SOFC_NG"].df_results.LCOE_detailed.nominal.CO2_Emission_Tonnes_cum
+    ICE_NG_data = data["ICE_NG"].df_results.LCOE_detailed.nominal.CO2_Emission_Tonnes_cum
+
+    # Create traces
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=years, y=HiPowAR_NH3_data,
+                             mode='lines+markers',
+                             name='HiPowAR'))
+    fig.add_trace(go.Scatter(x=years, y=SOFC_NH3_data,
+                             mode='lines+markers',
+                             name='SOFC'))
+    fig.add_trace(go.Scatter(x=years, y=ICE_NH3_data,
+                             mode='lines+markers',
+                             name='ICE'))
+    fig.add_trace(go.Scatter(x=years, y=SOFC_NG_data,
+                             mode='lines+markers',
+                             line=dict(dash='dash'),
+                             name='SOFC NG'))
+    fig.add_trace(go.Scatter(x=years, y=ICE_NG_data,
+                             mode='lines+markers',
+                             line=dict(dash='dash'),
+                             name='ICE NG'))
+
+    fig.update_layout(
+        title_text="Emission Development",
+        # Add annotations in the center of the donut pies.
+        template=custom_template,
+        autosize=False,
+        # width=500,
+        height=500,
+        xaxis_title='Year',
+        yaxis_title='Cumulated Emissions, CO² eq. [T]')
 
     return fig
 

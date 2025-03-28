@@ -13,6 +13,8 @@ class DataclassLCOEsimpleInput:
     eta_perc: float  # [%]
     discountrate_perc: float  # [%]
     cost_CO2_per_tonne: float  # [€/T_CO2]
+    emission_production_kg_kW: float
+    emission_op_collateral_kg_kWh: float
     CO2_costIncrease_percent_per_year: float  # [%]
     lifetime_yr: float  # [yr]
     operatinghoursyearly: float  # [hr/yr]
@@ -20,6 +22,7 @@ class DataclassLCOEsimpleInput:
     fuel_cost_Eur_per_kWh: float  # [€/kWh]
     fuel_costIncrease_percent_per_year: float  # [%]
     fuel_CO2emission_tonnes_per_MWh: float  # [T_CO/MWh]
+    fuel_footprint_kgCO2_per_kWh: float
 
 
 def lcoe(inp: DataclassLCOEsimpleInput):
@@ -33,34 +36,57 @@ def lcoe(inp: DataclassLCOEsimpleInput):
                                "CO2_Emission_Cost"])
     df.loc[0, :] = 0
 
-    # Investment Costs (only in first year)
+    # Investment Costs & Emissions (only in first year)
     # ----------------------------
     df.loc[0, "Investment"] = inp.size_kW * inp.capex_Eur_kW
     df.loc[1:, "Investment"] = 0
+    df.loc[0, "CO2_Emission_Tonnes"] = inp.size_kW * inp.emission_production_kg_kW / 1000
 
     # OPEX Costs
     # ----------------------------
     df.loc[1:, "OM"] = inp.size_kW * inp.operatinghoursyearly * inp.opex_Eur_kWh
+    df.loc[1:, "CO2_Emission_Tonnes"] = (inp.size_kW *
+                                         inp.operatinghoursyearly *
+                                         inp.emission_op_collateral_kg_kWh / 1000
+                                         * 100 / inp.eta_perc)
 
     # Fuel Costs
     # ----------------------------
-    df.loc[:,"Fuel_cost_Eur_per_kWh"] = inp.fuel_cost_Eur_per_kWh * (1 + inp.fuel_costIncrease_percent_per_year / 100)**df.index
-    df.loc[1:,
-    "Fuel"] = inp.size_kW * inp.operatinghoursyearly *  df.loc[1:,"Fuel_cost_Eur_per_kWh"] * 100 / inp.eta_perc
+    df.loc[:, "Fuel_cost_Eur_per_kWh"] = inp.fuel_cost_Eur_per_kWh * (
+            1 + inp.fuel_costIncrease_percent_per_year / 100) ** df.index
+
+    df.loc[1:, "Fuel"] = (inp.size_kW * inp.operatinghoursyearly *
+                          df.loc[1:, "Fuel_cost_Eur_per_kWh"] * 100 / inp.eta_perc)
 
     # CO2 Emission [Tonnes]
     # ----------------------------
-    df.loc[1:, "CO2_Emission_Tonnes"] = inp.fuel_CO2emission_tonnes_per_MWh * inp.size_kW / 1000 * \
-                                        inp.operatinghoursyearly * 100 / inp.eta_perc
+    # Fuel Production
+    df.loc[1:, "CO2_Emission_Tonnes"] = (df.loc[1:, "CO2_Emission_Tonnes"] +
+                                         inp.fuel_footprint_kgCO2_per_kWh * inp.size_kW / 1000 *
+                                         inp.operatinghoursyearly * 100 / inp.eta_perc)
+
+    # Fuel use
+    df.loc[1:, "CO2_Emission_Tonnes"] = (df.loc[1:, "CO2_Emission_Tonnes"] +
+                                         inp.fuel_CO2emission_tonnes_per_MWh * inp.size_kW / 1000 *
+                                         inp.operatinghoursyearly * 100 / inp.eta_perc)
+
+    # Cumulative CO2 Emission [Tonnes]
+    # ----------------------------
+    df.loc[:, "CO2_Emission_Tonnes_cum"] = df.loc[:, "CO2_Emission_Tonnes"].cumsum()
 
     # CO2 Emission Cost
     # ----------------------------
-    df.loc[:,"CO2_Cost_per_tonne"] = inp.cost_CO2_per_tonne * (1 + inp.CO2_costIncrease_percent_per_year / 100)**df.index
-    df.loc[:, "CO2_Emission_Cost"] = df.loc[:, "CO2_Emission_Tonnes"] * df.loc[:,"CO2_Cost_per_tonne"]
+    df.loc[:, "CO2_Cost_per_tonne"] = inp.cost_CO2_per_tonne * (
+            1 + inp.CO2_costIncrease_percent_per_year / 100) ** df.index
+
+    df.loc[:, "CO2_Emission_Cost"] = (df.loc[:, "CO2_Emission_Tonnes"] *
+                                      df.loc[:, "CO2_Cost_per_tonne"])
 
     # Combined Cost
     # ----------------------------
-    df.loc[:, "Cost_combined"] = df.loc[:, "Investment"] + df.loc[:, "OM"] + df.loc[:, "Fuel"] + df.loc[:, "CO2_Emission_Cost"]
+    df.loc[:, "Cost_combined"] = (df.loc[:, "Investment"] +
+                                  df.loc[:, "OM"] + df.loc[:, "Fuel"] +
+                                  df.loc[:, "CO2_Emission_Cost"])
 
     # Combined Cumulative Cost
     # ----------------------------
@@ -89,7 +115,7 @@ def lcoe(inp: DataclassLCOEsimpleInput):
     lcoe_val = (df["Investment_fin"].sum() + df["OM_fin"].sum() + df["Fuel_fin"].sum() +
                 df["CO2_Emission_Cost_fin"].sum()) / df["Power_fin"].sum()  # [€/kWh]
 
-    return lcoe_val,df
+    return lcoe_val, df
 
 
 def multisystem_calculation(df: pd.DataFrame, system_names: list, fuel_names: list, fuel_prop: dict,
@@ -109,7 +135,8 @@ def multisystem_calculation(df: pd.DataFrame, system_names: list, fuel_names: li
 
                 # Init Input Handler
                 inputhandler = DataHandlerLCOE(df=dfred, dc=DataclassLCOEsimpleInput,
-                                               dict_additionalNames={"name": system, "fuel_name": fuel,
+                                               dict_additionalNames={"name": system,
+                                                                     "fuel_name": fuel,
                                                                      **fuel_prop[fuel]})
                 inputhandler.create_input_sets(mode=mode)
                 inputhandler.submit_job(func=lcoe, resultcolumn="LCOE", mode=mode)

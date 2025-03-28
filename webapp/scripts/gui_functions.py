@@ -393,7 +393,10 @@ def style_inpCard_LCOE_comp(header: str,
 
     lcoe_rowInput = [{"label": "El. Output [kW]", 'par': "size_kW", "n_inputfields": 1},
                      {"label": "Capex [€/kW]", 'par': "capex_Eur_kW", "n_inputfields": 3},
+                     {"label": "Production CO2eq [kg/kW]", 'par': "emission_production_kg_kW", "n_inputfields": 3},
                      {"label": "Opex (no Fuel) [€/kWh]", 'par': "opex_Eur_kWh", "n_inputfields": 3},
+                     {"label": "Operation Collateral CO2eq [kg/kW]", 'par': "emission_op_collateral_kg_kWh",
+                      "n_inputfields": 3},
                      {"label": "Efficiency [%]", 'par': "eta_perc", "n_inputfields": 3}]
 
     if add_rows is not None:
