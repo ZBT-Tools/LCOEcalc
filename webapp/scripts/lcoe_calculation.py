@@ -67,7 +67,7 @@ def lcoe(inp: DataclassLCOEsimpleInput):
 
     # Fuel use
     df.loc[1:, "CO2_Emission_Tonnes"] = (df.loc[1:, "CO2_Emission_Tonnes"] +
-                                         inp.fuel_CO2emission_tonnes_per_MWh * inp.size_kW / 1000 *
+                                         inp.fuel_CO2emission_tonnes_per_MWh * (inp.size_kW / 1000) *
                                          inp.operatinghoursyearly * 100 / inp.eta_perc)
 
     # Cumulative CO2 Emission [Tonnes]
