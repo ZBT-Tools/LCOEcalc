@@ -255,7 +255,7 @@ app.layout = dbc.Container([
                     dbc.Row([
                         dbc.Col(style_inpCard_LCOE_comp(header="HiPowAR", component="HiPowAR"),
                                 width=12),
-                        dbc.Col(style_inpCard_LCOE_comp(header="SOFC", component="SOFC",
+                        dbc.Col(style_inpCard_LCOE_comp(header="Boiler - Baseline", component="SOFC",
                                                         # add_rows=[{"par": "stacklifetime_hr",
                                                         #            "label": "Stack Lifetime [hr]"},
                                                         #           {"par": "stackexchangecost_percCapex",
