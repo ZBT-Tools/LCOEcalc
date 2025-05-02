@@ -43,8 +43,6 @@ comparison_par_name = "Operation Hours [hrs/yr]"
 COMP_SYS = "HiPowAR_NH3"
 MODPAR = "operatinghoursyearly"
 
-
-
 # Use Celery w/ Redis for long callbacks
 #   See:
 #   https://dash.plotly.com/background-callbacks
@@ -287,7 +285,9 @@ app.layout = dbc.Container([
                                                        {'par': "lifetime_yr",
                                                         'label': "Lifetime [y]"},
                                                        {'par': "operatinghoursyearly",
-                                                        'label': "Operating hours [hr/yr]"}]
+                                                        'label': "Operating hours [hr/yr]"},
+                                                       {'par': "electricity_price",
+                                                        'label': "Electricity price [€/kWh]"}]
                                                    ), width=12),
                         dbc.Col([
                             dbc.Row(dbc.Col(
@@ -366,7 +366,11 @@ app.layout = dbc.Container([
                             dbc.Table(id="table_lcoe_nominal", striped=False, bordered=True))),
                         dbc.Row(dcc.Graph(id='graph_pie_lcoe_nominal', figure=empty_fig)),
                         dbc.Row(dcc.Graph(id='graph_pie_emission_nominal', figure=empty_fig)),
-                        dbc.Row(dcc.Graph(id='graph_yearly_lcoe_nominal', figure=empty_fig)),
+                        dbc.Row(dcc.Graph(id='graph_yearly_cost_lcoe_nominal', figure=empty_fig)),
+                        dbc.Row(
+                            dcc.Graph(id='graph_yearly_revenue_lcoe_nominal', figure=empty_fig)),
+                        dbc.Row(
+                            dcc.Graph(id='graph_yearly_earnings_lcoe_nominal', figure=empty_fig)),
                         dbc.Row(dcc.Graph(id='graph_yearly_emission_nominal', figure=empty_fig))
 
                     ], id="collapse_nom", is_open=False)
@@ -648,7 +652,7 @@ def cbf_lcoeNominalResults_piechart_update(inp, state):
     """
     data = read_data(state)
 
-    labels = ["Capex", "Opex", "Fuel","Emissions"]
+    labels = ["Capex", "Opex", "Fuel", "Emissions"]
     HiPowAR_data = [sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Investment_fin),
                     sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.OM_fin),
                     sum(data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Fuel_fin),
@@ -692,60 +696,215 @@ def cbf_lcoeNominalResults_piechart_update(inp, state):
     return fig
 
 
+# @app.callback(
+#     Output("graph_yearly_cost_lcoe_nominal", "figure"),
+#     Input("flag_nominal_calculation_done", "children"),
+#     State('nominal_storage', 'data'),
+#     prevent_initial_call=True)
+# def cbf_lcoeNominalResults_yearly_cost_chart_update(inp, state):
+#     """
+#     Update yearly cost  line plot
+#     """
+#     data = read_data(state)
+#
+#     labels = ["Capex", "Opex", "Fuel"]
+#     years = data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.index
+#     HiPowAR_NH3_data = data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_cum
+#     SOFC_NH3_data = data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_cum
+#     ICE_NH3_data = data["ICE_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_cum
+#     SOFC_NG_data = data["SOFC_NG"].df_results.LCOE_detailed.nominal.Cost_combined_cum
+#     ICE_NG_data = data["ICE_NG"].df_results.LCOE_detailed.nominal.Cost_combined_cum
+#
+#     # Create traces
+#     fig = go.Figure()
+#     fig.add_trace(go.Scatter(x=years, y=HiPowAR_NH3_data,
+#                              mode='lines+markers',
+#                              name='HiPowAR'))
+#     fig.add_trace(go.Scatter(x=years, y=SOFC_NH3_data,
+#                              mode='lines+markers',
+#                              name='SOFC'))
+#     fig.add_trace(go.Scatter(x=years, y=ICE_NH3_data,
+#                              mode='lines+markers',
+#                              name='ICE'))
+#     fig.add_trace(go.Scatter(x=years, y=SOFC_NG_data,
+#                              mode='lines+markers',
+#                              line=dict(dash='dash'),
+#                              name='SOFC NG'))
+#     fig.add_trace(go.Scatter(x=years, y=ICE_NG_data,
+#                              mode='lines+markers',
+#                              line=dict(dash='dash'),
+#                              name='ICE NG'))
+#
+#     fig.update_layout(
+#         title_text="Cost Development",
+#         # Add annotations in the center of the donut pies.
+#         # annotations=[dict(text='HiPowAR', x=0.11, y=0.5, font_size=15, showarrow=False),
+#         #              dict(text='SOFC', x=0.5, y=0.5, font_size=15, showarrow=False),
+#         #              dict(text='ICE', x=0.875, y=0.5, font_size=15, showarrow=False)],
+#
+#         template=custom_template,
+#         autosize=False,
+#         # width=500,
+#         height=500,
+#         xaxis_title='Year',
+#         yaxis_title='Cumulated Cost [€]')
+#
+#     return fig
+
+
 @app.callback(
-    Output("graph_yearly_lcoe_nominal", "figure"),
+    Output("graph_yearly_revenue_lcoe_nominal", "figure"),
     Input("flag_nominal_calculation_done", "children"),
     State('nominal_storage', 'data'),
     prevent_initial_call=True)
-def cbf_lcoeNominalResults_yearly_chart_update(inp, state):
+def cbf_lcoeNominalResults_yearly_revenue_chart_update(inp, state):
     """
-    Update yearly line plot
+    Update yearly cost vs . saving/revenue line plot
     """
     data = read_data(state)
 
-    labels = ["Capex", "Opex", "Fuel"]
     years = data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.index
-    HiPowAR_NH3_data = data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_cum
-    SOFC_NH3_data = data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_cum
-    ICE_NH3_data = data["ICE_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_cum
-    SOFC_NG_data = data["SOFC_NG"].df_results.LCOE_detailed.nominal.Cost_combined_cum
-    ICE_NG_data = data["ICE_NG"].df_results.LCOE_detailed.nominal.Cost_combined_cum
+    HiPowAR_NH3_data_revenue = data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Power_Revenue_fin_cum
+    SOFC_NH3_data_revenue = data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Power_Revenue_fin_cum
+    ICE_NH3_data_revenue = data["ICE_NH3"].df_results.LCOE_detailed.nominal.Power_Revenue_fin_cum
+    SOFC_NG_data_revenue = data["SOFC_NG"].df_results.LCOE_detailed.nominal.Power_Revenue_fin_cum
+    ICE_NG_data_revenue = data["ICE_NG"].df_results.LCOE_detailed.nominal.Power_Revenue_fin_cum
+
+    HiPowAR_NH3_data_cost = data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_fin_cum
+    SOFC_NH3_data_cost = data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_fin_cum
+    ICE_NH3_data_cost = data["ICE_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_fin_cum
+    SOFC_NG_data_cost = data["SOFC_NG"].df_results.LCOE_detailed.nominal.Cost_combined_fin_cum
+    ICE_NG_data_cost = data["ICE_NG"].df_results.LCOE_detailed.nominal.Cost_combined_fin_cum
+
+    delta_cost = HiPowAR_NH3_data_cost - SOFC_NH3_data_cost
+    additional_revenue = HiPowAR_NH3_data_revenue - SOFC_NH3_data_revenue
 
     # Create traces
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=years, y=HiPowAR_NH3_data,
+    fig.add_trace(go.Scatter(x=years, y=delta_cost,
                              mode='lines+markers',
-                             name='HiPowAR'))
-    fig.add_trace(go.Scatter(x=years, y=SOFC_NH3_data,
+                             name='C post_exchange',
+                             line=dict(color='blue', width=1)))
+    fig.add_trace(go.Scatter(x=years, y=additional_revenue,
                              mode='lines+markers',
-                             name='SOFC'))
-    fig.add_trace(go.Scatter(x=years, y=ICE_NH3_data,
+                             name='S post_exchange',
+                             line=dict(color='red', width=1,
+                                       )#dash='dash')
+                             ))
+    fig.add_trace(go.Scatter(x=years, y=additional_revenue - delta_cost,
                              mode='lines+markers',
-                             name='ICE'))
-    fig.add_trace(go.Scatter(x=years, y=SOFC_NG_data,
-                             mode='lines+markers',
-                             line=dict(dash='dash'),
-                             name='SOFC NG'))
-    fig.add_trace(go.Scatter(x=years, y=ICE_NG_data,
-                             mode='lines+markers',
-                             line=dict(dash='dash'),
-                             name='ICE NG'))
+                             name='R post_exchange',
+                             line=dict(color='green', width=1,
+                                       )#dash='dot')
+                             ))
+    # fig.add_trace(go.Scatter(x=years, y=SOFC_NH3_data_revenue,
+    #                          mode='lines+markers',
+    #                          name='Boiler revenue|saving',
+    #                          line=dict(color='firebrick', width=1)
+    #                          ))
+    # fig.add_trace(go.Scatter(x=years, y=SOFC_NH3_data_cost,
+    #                          mode='lines+markers',
+    #                          name='Boiler cost',
+    #                          line=dict(color='firebrick', width=1,
+    #                                    dash='dash')
+    #                          ))
+    # fig.add_trace(go.Scatter(x=years, y=SOFC_NH3_data_revenue-SOFC_NH3_data_cost,
+    #                          mode='lines+markers',
+    #                          name='Boiler revenue|saving - cost',
+    #                          line=dict(color='firebrick', width=1,
+    #                                    dash='dash')
+    #                          ))
+    # fig.add_trace(go.Scatter(x=years, y=ICE_NH3_data,
+    #                          mode='lines+markers',
+    #                          name='ICE'))
+    # fig.add_trace(go.Scatter(x=years, y=SOFC_NG_data,
+    #                          mode='lines+markers',
+    #                          line=dict(dash='dash'),
+    #                          name='SOFC NG'))
+    # fig.add_trace(go.Scatter(x=years, y=ICE_NG_data,
+    #                          mode='lines+markers',
+    #                          line=dict(dash='dash'),
+    #                          name='ICE NG'))
+
 
     fig.update_layout(
-        title_text="Cost Development",
+        title_text="Cumulative Savings and Costs of HiPowAR exchange",
         # Add annotations in the center of the donut pies.
         # annotations=[dict(text='HiPowAR', x=0.11, y=0.5, font_size=15, showarrow=False),
         #              dict(text='SOFC', x=0.5, y=0.5, font_size=15, showarrow=False),
         #              dict(text='ICE', x=0.875, y=0.5, font_size=15, showarrow=False)],
 
-        template=custom_template,
+        template="plotly_white",
+        #template=custom_template,
         autosize=False,
         # width=500,
         height=500,
+
         xaxis_title='Year',
-        yaxis_title='Cumulated Cost [€]')
+        yaxis_title='Savings / Costs [€]')
 
     return fig
+
+
+# @app.callback(
+#     Output("graph_yearly_earnings_lcoe_nominal", "figure"),
+#     Input("flag_nominal_calculation_done", "children"),
+#     State('nominal_storage', 'data'),
+#     prevent_initial_call=True)
+# def cbf_lcoeNominalResults_yearly_earnings_chart_update(inp, state):
+#     """
+#     Update yearly earning line plot
+#     """
+#     data = read_data(state)
+#
+#     years = data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.index
+#     HiPowAR_NH3_data = (data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Power_Revenue_cum -
+#                         data["HiPowAR_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_cum)
+#     SOFC_NH3_data = (data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Power_Revenue_cum -
+#                      data["SOFC_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_cum)
+#     ICE_NH3_data = (data["ICE_NH3"].df_results.LCOE_detailed.nominal.Power_Revenue_cum -
+#                     data["ICE_NH3"].df_results.LCOE_detailed.nominal.Cost_combined_cum)
+#     SOFC_NG_data = (data["SOFC_NG"].df_results.LCOE_detailed.nominal.Power_Revenue_cum -
+#                     data["SOFC_NG"].df_results.LCOE_detailed.nominal.Cost_combined_cum)
+#     ICE_NG_data = (data["ICE_NG"].df_results.LCOE_detailed.nominal.Power_Revenue_cum -
+#                    data["ICE_NG"].df_results.LCOE_detailed.nominal.Cost_combined_cum)
+#
+#     # Create traces
+#     fig = go.Figure()
+#     fig.add_trace(go.Scatter(x=years, y=HiPowAR_NH3_data,
+#                              mode='lines+markers',
+#                              name='HiPowAR'))
+#     fig.add_trace(go.Scatter(x=years, y=SOFC_NH3_data,
+#                              mode='lines+markers',
+#                              name='Boiler'))
+#     # fig.add_trace(go.Scatter(x=years, y=ICE_NH3_data,
+#     #                          mode='lines+markers',
+#     #                          name='ICE'))
+#     # fig.add_trace(go.Scatter(x=years, y=SOFC_NG_data,
+#     #                          mode='lines+markers',
+#     #                          line=dict(dash='dash'),
+#     #                          name='SOFC NG'))
+#     # fig.add_trace(go.Scatter(x=years, y=ICE_NG_data,
+#     #                          mode='lines+markers',
+#     #                          line=dict(dash='dash'),
+#     #                          name='ICE NG'))
+#
+#     fig.update_layout(
+#         title_text="Revenue|Saving - Cost Development",
+#         # Add annotations in the center of the donut pies.
+#         # annotations=[dict(text='HiPowAR', x=0.11, y=0.5, font_size=15, showarrow=False),
+#         #              dict(text='SOFC', x=0.5, y=0.5, font_size=15, showarrow=False),
+#         #              dict(text='ICE', x=0.875, y=0.5, font_size=15, showarrow=False)],
+#
+#         template=custom_template,
+#         autosize=False,
+#         # width=500,
+#         height=500,
+#         xaxis_title='Year',
+#         yaxis_title='Revenue|Saving - Cost [€]')
+#
+#     return fig
+
 
 @app.callback(
     Output("graph_yearly_emission_nominal", "figure"),
@@ -797,6 +956,7 @@ def cbf_lcoeNominalEmissionResults_yearly_chart_update(inp, state):
         yaxis_title='Cumulated Emissions, CO² eq. [T]')
 
     return fig
+
 
 @app.callback(
     Output("table_lcoe_comparison", "children"),
@@ -851,16 +1011,13 @@ def cbf_lcoeComparisonResults_table_update(inp, state):
     result_df.drop_duplicates(keep='first', subset=result_df.columns.difference(['LCOE_detailed']),
                               inplace=True)
 
-
-
     # Write into table (could be reworked)
     # ----------------------------------------------------------------------------------------------
     df_table = pd.DataFrame(
         columns=["Configuration", "LCOE [€/kWh]"])
 
-    names = ["nominal","min","max"]
-    for (index, row),name in zip(result_df.iterrows(),names):
-
+    names = ["nominal", "min", "max"]
+    for (index, row), name in zip(result_df.iterrows(), names):
         systemname = name
         df_table.loc[systemname, "Configuration"] = name
         df_table.loc[systemname, "LCOE [€/kWh]"] = \
@@ -869,6 +1026,8 @@ def cbf_lcoeComparisonResults_table_update(inp, state):
     table = dbc.Table.from_dataframe(df_table, bordered=True, hover=True, index=False, header=True)
 
     return table.children
+
+
 @app.callback(
     Output("graph_pie_lcoe_comparison", "figure"),
     Input("flag_sensitivity_calculation_done", "children"),
@@ -1018,8 +1177,8 @@ def cbf_lcoeComparisonResults_yearly_chart_update(inp, state):
     sys_data = result_df.loc["nominal", "LCOE_detailed"].Cost_combined_cum
 
     fig = go.Figure()
-    names = ["nominal","min","max"]
-    for (index, row),name in zip(result_df.iterrows(),names):
+    names = ["nominal", "min", "max"]
+    for (index, row), name in zip(result_df.iterrows(), names):
         sys_data = row["LCOE_detailed"].Cost_combined_cum
         fig.add_trace(go.Scatter(x=years, y=sys_data,
                                  mode='lines+markers',

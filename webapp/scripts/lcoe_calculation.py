@@ -23,6 +23,7 @@ class DataclassLCOEsimpleInput:
     fuel_costIncrease_percent_per_year: float  # [%]
     fuel_CO2emission_tonnes_per_MWh: float  # [T_CO/MWh]
     fuel_footprint_kgCO2_per_kWh: float
+    electricity_price: float
 
 
 def lcoe(inp: DataclassLCOEsimpleInput):
@@ -88,13 +89,25 @@ def lcoe(inp: DataclassLCOEsimpleInput):
                                   df.loc[:, "OM"] + df.loc[:, "Fuel"] +
                                   df.loc[:, "CO2_Emission_Cost"])
 
+    df.loc[:, "Cost_combined_fin"] = df.apply(lambda row: row.Cost_combined / (1 + inp.discountrate_perc / 100) ** int(row.name),
+                            axis=1)
+
     # Combined Cumulative Cost
     # ----------------------------
-    df.loc[:, "Cost_combined_cum"] = df.loc[:, "Cost_combined"].cumsum()
+    df.loc[:, "Cost_combined_fin_cum"] = df.loc[:, "Cost_combined_fin"].cumsum()
 
     # Electricity Generation
     # ----------------------------
     df.loc[1:, "Power"] = inp.size_kW * inp.operatinghoursyearly
+
+    # Electricity Revenue
+    # ----------------------------
+    df.loc[0, "Power_Revenue"]=0
+    df.loc[1:, "Power_Revenue"] = inp.size_kW * inp.operatinghoursyearly * inp.electricity_price
+    df.loc[:, "Power_Revenue_fin"] = df.apply(lambda row: row.Power_Revenue / (1 + inp.discountrate_perc / 100) ** int(row.name),
+                            axis=1)
+
+    df.loc[:, "Power_Revenue_fin_cum"] = df.loc[:, "Power_Revenue_fin"].cumsum()
 
     # Financial Discounting of costs
     # ----------------------------
@@ -110,6 +123,10 @@ def lcoe(inp: DataclassLCOEsimpleInput):
         axis=1)
     df["Power_fin"] = df.apply(
         lambda row: row.Power / (1 + inp.discountrate_perc / 100) ** int(row.name),
+        axis=1)
+
+    df["Power_Revenue_fin"] = df.apply(
+        lambda row: row.Power_Revenue / (1 + inp.discountrate_perc / 100) ** int(row.name),
         axis=1)
 
     lcoe_val = (df["Investment_fin"].sum() + df["OM_fin"].sum() + df["Fuel_fin"].sum() +
