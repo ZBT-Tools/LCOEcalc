@@ -6,4 +6,4 @@ authors:
 title: "LCOE Calc - An interactive web tool for comparison and study of Electricity Generation Costs (LCOE) for different conversion technologies with consideration of emissions"
 version: 1.0.2
 date-released: 2025-01-02
-url: "https://github.com/ZBT-Tools/energysys_components"
+url: "https://github.com/ZBT-Tools/LCOEcalc"
