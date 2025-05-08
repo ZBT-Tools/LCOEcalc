@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Kuschel"
+  given-names: "Florian"
+title: "LCOE Calc - An interactive web tool for comparison and study of Electricity Generation Costs (LCOE) for different conversion technologies with consideration of emissions"
+version: 1.0.2
+date-released: 2025-01-02
+url: "https://github.com/ZBT-Tools/energysys_components"
