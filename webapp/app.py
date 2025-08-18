@@ -1504,4 +1504,4 @@ def cbf_lcoeStudyResults_plot_Sensitivity_update(inp, state):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True, port=8000)
+    app.run(debug=True, port=8000)
